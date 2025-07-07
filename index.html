@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tinySA Ultra 웹 컨트롤러</title>
+    <title>tinySA Ultra 화면 미러링</title>
     <style>
         * {
             margin: 0;
@@ -60,10 +60,10 @@
 
         .container {
             display: grid;
-            grid-template-columns: 300px 1fr 300px;
+            grid-template-columns: 300px 1fr;
             gap: 1rem;
             padding: 1rem;
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             min-height: calc(100vh - 140px);
         }
@@ -146,13 +146,15 @@
         .display-area {
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            align-items: center;
             gap: 1rem;
         }
 
         .screen-container {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
-            padding: 1.5rem;
+            padding: 2rem;
             text-align: center;
         }
 
@@ -187,29 +189,13 @@
             border-radius: 7px;
         }
 
-        .chart-container {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 1.5rem;
-            min-height: 350px;
-            position: relative;
-        }
-
-        .chart-container canvas {
-            border-radius: 8px;
-            background: #1a1a1a;
-            width: 100%;
-            max-width: 100%;
-            height: auto;
-        }
-
         .terminal {
             background: #000;
             color: #0f0;
             font-family: 'Courier New', monospace;
             padding: 1rem;
             border-radius: 8px;
-            height: 200px;
+            height: 300px;
             overflow-y: auto;
             font-size: 0.8rem;
             border: 1px solid #333;
@@ -217,44 +203,6 @@
 
         .terminal-line {
             margin-bottom: 0.25rem;
-        }
-
-        .measurements {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .measurement-card {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .measurement-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #64b5f6;
-            margin-bottom: 0.5rem;
-        }
-
-        .measurement-label {
-            font-size: 0.9rem;
-            color: #e3f2fd;
-        }
-
-        .controls {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .controls button {
-            flex: 1;
-            padding: 0.5rem;
-            font-size: 0.8rem;
         }
 
         .webserial-warning {
@@ -267,7 +215,20 @@
             font-size: 0.9rem;
         }
 
-        @media (max-width: 1200px) {
+        .zoom-controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .zoom-controls button {
+            width: auto;
+            padding: 0.5rem 1rem;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 1024px) {
             .container {
                 grid-template-columns: 1fr;
                 gap: 1rem;
@@ -278,16 +239,12 @@
             .header h1 {
                 font-size: 1.5rem;
             }
-            
-            .measurements {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>📡 tinySA Ultra 웹 컨트롤러</h1>
+        <h1>📺 tinySA Ultra 화면 미러링</h1>
         <div class="status">
             <div class="status-dot" id="statusDot"></div>
             <span id="connectionStatus">연결 안됨</span>
@@ -301,16 +258,15 @@
     </div>
 
     <div class="container">
-        <!-- 왼쪽 제어 패널 -->
+        <!-- 제어 패널 -->
         <div class="panel">
             <!-- WebSerial 지원 확인 -->
             <div id="webserialWarning" class="webserial-warning" style="display: none;">
-                ⚠️ WebSerial API 사용 불가<br>
-                <strong>해결 방법:</strong><br>
-                • Chrome 89+ 또는 Edge 89+ 브라우저 사용<br>
-                • HTTPS 환경에서 실행 (localhost 제외)<br>
-                • chrome://flags에서 "Experimental Web Platform features" 활성화<br>
-                • 장비를 USB로 연결 후 시도
+                ⚠️ WebSerial API 미지원<br>
+                <strong>필요사항:</strong><br>
+                • Chrome 89+ 또는 Edge 89+<br>
+                • HTTPS 환경 (localhost 제외)<br>
+                • 장비를 USB로 연결
             </div>
 
             <!-- 연결 상태 -->
@@ -318,61 +274,40 @@
                 <h3>🔌 장비 연결</h3>
                 <button id="connectBtn">장비 연결</button>
                 <button id="disconnectBtn" disabled>연결 해제</button>
-                <button id="diagnoseBtn" style="background: linear-gradient(45deg, #ff9800, #f57c00);">🔍 연결 진단</button>
                 <div style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
                     <div>상태: <span id="deviceStatus">대기 중</span></div>
                     <div>FPS: <span id="fpsDisplay">0</span></div>
-                    <div>데이터: <span id="dataCount">0</span> 포인트</div>
                 </div>
             </div>
 
-            <!-- 주파수 설정 -->
+            <!-- 화면 제어 -->
             <div class="section">
-                <h3>📡 주파수 설정</h3>
+                <h3>🖥️ 화면 제어</h3>
                 <div class="input-group">
-                    <label>시작 주파수 (MHz)</label>
-                    <input type="number" id="startFreq" value="100" step="1" min="0.1" max="6000">
+                    <label>줌 레벨</label>
+                    <div class="zoom-controls">
+                        <button id="zoomOutBtn">-</button>
+                        <span id="zoomLevel" style="padding: 0.5rem; min-width: 50px; text-align: center;">100%</span>
+                        <button id="zoomInBtn">+</button>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label>종료 주파수 (MHz)</label>
-                    <input type="number" id="stopFreq" value="1000" step="1" min="0.1" max="6000">
-                </div>
-                <div class="input-group">
-                    <label>측정 포인트</label>
-                    <select id="points">
-                        <option value="101" selected>101</option>
-                        <option value="201">201</option>
-                        <option value="401">401</option>
-                    </select>
-                </div>
-                <button id="setFreqBtn">주파수 설정 적용</button>
+                <button id="saveImageBtn">📸 스크린샷 저장</button>
+                <button id="fullscreenBtn">🔳 전체화면</button>
             </div>
 
-            <!-- 스캔 제어 -->
+            <!-- 통신 로그 -->
             <div class="section">
-                <h3>🔍 스캔 제어</h3>
-                <button id="scanBtn">스펙트럼 스캔</button>
-                <button id="sweepBtn">S-parameter 측정</button>
-                <div class="controls">
-                    <button id="pauseBtn" disabled>일시정지</button>
-                    <button id="resumeBtn" disabled>재개</button>
+                <h3>📟 통신 로그</h3>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line">tinySA Ultra 화면 미러링 v1.0</div>
+                    <div class="terminal-line">화면 미러링 전용 버전</div>
                 </div>
-            </div>
-
-            <!-- 캘리브레이션 -->
-            <div class="section">
-                <h3>🎯 캘리브레이션</h3>
-                <button id="calBtn">캘리브레이션 실행</button>
-                <div class="controls">
-                    <button id="saveCalBtn">저장</button>
-                    <button id="loadCalBtn">로드</button>
-                </div>
+                <button id="clearLogBtn" style="margin-top: 0.5rem;">로그 지우기</button>
             </div>
         </div>
 
-        <!-- 중앙 디스플레이 영역 -->
+        <!-- 화면 미러링 영역 -->
         <div class="display-area">
-            <!-- 화면 미러링 -->
             <div class="screen-container">
                 <h3 style="color: #64b5f6; margin-bottom: 1rem;">📺 실시간 화면</h3>
                 <div class="device-screen" id="deviceScreen">
@@ -380,92 +315,23 @@
                     <div class="screen-overlay" id="screenOverlay">
                         <div>🔌 장비를 연결하세요</div>
                         <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
-                            Chrome/Edge 브라우저의 HTTPS 환경 필요
+                            Chrome/Edge 브라우저에서 USB 연결 후 연결 버튼 클릭
                         </div>
                     </div>
                 </div>
-                <div style="margin-top: 1rem; font-size: 0.9rem;">
-                    화면을 클릭하여 장비 조작 | 키보드: +/- 줌, S 스크린샷
-                </div>
-            </div>
-
-            <!-- 스펙트럼 차트 -->
-            <div class="chart-container">
-                <h3 style="color: #64b5f6; margin-bottom: 1rem;">📊 스펙트럼 분석</h3>
-                <canvas id="spectrumChart" width="800" height="250"></canvas>
-                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #ccc;">
-                    스펙트럼 데이터: <span id="spectrumStatus">장비 연결 후 데이터 수신</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 오른쪽 제어 패널 -->
-        <div class="panel">
-            <!-- 측정값 -->
-            <div class="section">
-                <h3>📊 측정값</h3>
-                <div class="measurements">
-                    <div class="measurement-card">
-                        <div class="measurement-value" id="peakFreq">-</div>
-                        <div class="measurement-label">Peak 주파수</div>
-                    </div>
-                    <div class="measurement-card">
-                        <div class="measurement-value" id="peakPower">-</div>
-                        <div class="measurement-label">Peak 파워</div>
-                    </div>
-                    <div class="measurement-card">
-                        <div class="measurement-value" id="s11Value">-</div>
-                        <div class="measurement-label">S11 (dB)</div>
-                    </div>
-                    <div class="measurement-card">
-                        <div class="measurement-value" id="vswr">-</div>
-                        <div class="measurement-label">VSWR</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 데이터 저장 -->
-            <div class="section">
-                <h3>💾 데이터 관리</h3>
-                <button id="saveDataBtn">측정 데이터 저장</button>
-                <button id="saveImageBtn">스크린샷 저장</button>
-                <button id="exportCsvBtn">CSV 내보내기</button>
-            </div>
-
-            <!-- 시스템 제어 -->
-            <div class="section">
-                <h3>⚙️ 시스템</h3>
-                <button id="resetBtn">시스템 리셋</button>
-                <button id="vbatBtn">배터리 체크</button>
-                <button id="infoBtn">장비 정보</button>
-            </div>
-
-            <!-- 명령어 -->
-            <div class="section">
-                <h3>💻 명령어</h3>
-                <div class="input-group">
-                    <input type="text" id="commandInput" placeholder="명령어 입력..." value="help">
-                </div>
-                <button id="sendCommandBtn">명령 전송</button>
-            </div>
-
-            <!-- 통신 로그 -->
-            <div class="section">
-                <h3>📟 통신 로그</h3>
-                <div class="terminal" id="terminal">
-                    <div class="terminal-line">tinySA Ultra 웹 컨트롤러 v2.0</div>
-                    <div class="terminal-line">실제 장비 연결 전용 버전</div>
+                <div style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                    화면을 클릭하여 장비 조작 | 키보드: +/- 줌, S 스크린샷, F 전체화면
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        console.log('=== tinySA Ultra 웹 컨트롤러 시작 ===');
+        console.log('=== tinySA Ultra 화면 미러링 시작 ===');
         
-        class TinySAController {
+        class ScreenMirror {
             constructor() {
-                console.log('TinySAController 초기화 시작...');
+                console.log('ScreenMirror 초기화 시작...');
                 
                 // 기본 속성
                 this.isConnected = false;
@@ -475,57 +341,38 @@
                 this.deviceType = 'tinysa-ultra';
                 this.zoom = 1;
                 this.isCapturing = false;
-                this.isPaused = false;
                 this.fps = 0;
                 this.frameCount = 0;
                 this.lastFpsUpdate = Date.now();
                 
-                // 측정 데이터
-                this.spectrumData = {
-                    frequencies: [],
-                    powers: []
-                };
-                
-                // WebSerial 지원 확인
-                this.checkWebSerialSupport();
-                
                 // 초기화
                 this.initializeElements();
                 this.setupEventListeners();
-                this.initializeCanvases();
+                this.initializeCanvas();
+                this.checkWebSerialSupport();
                 
-                this.logToTerminal('✅ 컨트롤러 초기화 완료');
-                this.logToTerminal('🔗 실제 장비 연결 전용 버전');
+                this.logToTerminal('✅ 화면 미러링 시스템 초기화 완료');
                 
-                // 연결 진단 실행
-                setTimeout(() => {
-                    this.diagnoseConnection();
-                }, 1000);
-                
-                console.log('TinySAController 초기화 완료');
+                console.log('ScreenMirror 초기화 완료');
             }
 
             checkWebSerialSupport() {
-                console.log('=== WebSerial 지원 확인 ===');
-                console.log('Navigator.serial:', 'serial' in navigator);
-                console.log('Protocol:', window.location.protocol);
-                console.log('Hostname:', window.location.hostname);
-                console.log('User Agent:', navigator.userAgent);
+                console.log('WebSerial 지원 확인...');
                 
                 if (!('serial' in navigator)) {
-                    console.warn('WebSerial API가 지원되지 않습니다');
+                    console.warn('WebSerial API 미지원');
                     this.showWebSerialWarning();
                     this.logToTerminal('❌ WebSerial API 미지원');
                     this.logToTerminal('💡 Chrome 89+ 또는 Edge 89+ 브라우저 필요');
-                    this.logToTerminal('💡 chrome://flags에서 "Experimental Web Platform features" 활성화 필요할 수 있음');
-                } else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    console.warn('HTTPS 환경이 아닙니다');
+                } else if (window.location.protocol !== 'https:' && 
+                          window.location.hostname !== 'localhost' && 
+                          window.location.hostname !== '127.0.0.1') {
+                    console.warn('HTTPS 환경 아님');
                     this.showWebSerialWarning();
                     this.logToTerminal('❌ HTTPS 환경 필요');
-                    this.logToTerminal('💡 localhost가 아닌 경우 HTTPS 프로토콜 필요');
                 } else {
                     this.logToTerminal('✅ WebSerial API 지원됨');
-                    this.logToTerminal('💡 장비를 USB로 연결 후 "장비 연결" 버튼 클릭');
+                    this.logToTerminal('💡 장비를 USB로 연결 후 "장비 연결" 클릭');
                 }
             }
 
@@ -537,30 +384,33 @@
             }
 
             initializeElements() {
-                console.log('DOM 요소 초기화 중...');
+                console.log('DOM 요소 초기화...');
                 
-                this.elements = {};
-                const elementIds = [
-                    'statusDot', 'connectionStatus', 'deviceType', 'deviceStatus', 'fpsDisplay', 'dataCount',
-                    'connectBtn', 'disconnectBtn', 'diagnoseBtn', 'startFreq', 'stopFreq', 'points', 'setFreqBtn',
-                    'scanBtn', 'sweepBtn', 'pauseBtn', 'resumeBtn',
-                    'calBtn', 'saveCalBtn', 'loadCalBtn', 'deviceScreen', 'screenOverlay', 'screenCanvas',
-                    'spectrumChart', 'spectrumStatus',
-                    'peakFreq', 'peakPower', 's11Value', 'vswr',
-                    'saveDataBtn', 'saveImageBtn', 'exportCsvBtn',
-                    'resetBtn', 'vbatBtn', 'infoBtn',
-                    'commandInput', 'sendCommandBtn', 'terminal'
-                ];
-                
-                elementIds.forEach(id => {
-                    this.elements[id] = document.getElementById(id);
-                });
+                this.elements = {
+                    statusDot: document.getElementById('statusDot'),
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    deviceType: document.getElementById('deviceType'),
+                    deviceStatus: document.getElementById('deviceStatus'),
+                    fpsDisplay: document.getElementById('fpsDisplay'),
+                    connectBtn: document.getElementById('connectBtn'),
+                    disconnectBtn: document.getElementById('disconnectBtn'),
+                    zoomInBtn: document.getElementById('zoomInBtn'),
+                    zoomOutBtn: document.getElementById('zoomOutBtn'),
+                    zoomLevel: document.getElementById('zoomLevel'),
+                    saveImageBtn: document.getElementById('saveImageBtn'),
+                    fullscreenBtn: document.getElementById('fullscreenBtn'),
+                    clearLogBtn: document.getElementById('clearLogBtn'),
+                    deviceScreen: document.getElementById('deviceScreen'),
+                    screenOverlay: document.getElementById('screenOverlay'),
+                    screenCanvas: document.getElementById('screenCanvas'),
+                    terminal: document.getElementById('terminal')
+                };
                 
                 console.log('DOM 요소 초기화 완료');
             }
 
             setupEventListeners() {
-                console.log('이벤트 리스너 설정 중...');
+                console.log('이벤트 리스너 설정...');
                 
                 // 장비 타입 변경
                 this.elements.deviceType?.addEventListener('change', (e) => {
@@ -571,57 +421,44 @@
                 // 연결 제어
                 this.elements.connectBtn?.addEventListener('click', () => this.connect());
                 this.elements.disconnectBtn?.addEventListener('click', () => this.disconnect());
-                this.elements.diagnoseBtn?.addEventListener('click', () => this.diagnoseConnection());
 
-                // 주파수 설정
-                this.elements.setFreqBtn?.addEventListener('click', () => this.setFrequencies());
-
-                // 스캔 제어
-                this.elements.scanBtn?.addEventListener('click', () => this.startScan());
-                this.elements.sweepBtn?.addEventListener('click', () => this.startSweep());
-                this.elements.pauseBtn?.addEventListener('click', () => this.pauseCapture());
-                this.elements.resumeBtn?.addEventListener('click', () => this.resumeCapture());
-
-                // 캘리브레이션
-                this.elements.calBtn?.addEventListener('click', () => this.calibrate());
-                this.elements.saveCalBtn?.addEventListener('click', () => this.saveCalibration());
-                this.elements.loadCalBtn?.addEventListener('click', () => this.loadCalibration());
-
-                // 데이터 관리
-                this.elements.saveDataBtn?.addEventListener('click', () => this.saveData());
+                // 화면 제어
+                this.elements.zoomInBtn?.addEventListener('click', () => this.zoomIn());
+                this.elements.zoomOutBtn?.addEventListener('click', () => this.zoomOut());
                 this.elements.saveImageBtn?.addEventListener('click', () => this.saveImage());
-                this.elements.exportCsvBtn?.addEventListener('click', () => this.exportCsv());
+                this.elements.fullscreenBtn?.addEventListener('click', () => this.toggleFullscreen());
+                this.elements.clearLogBtn?.addEventListener('click', () => this.clearLog());
 
-                // 시스템 제어
-                this.elements.resetBtn?.addEventListener('click', () => this.systemReset());
-                this.elements.vbatBtn?.addEventListener('click', () => this.checkBattery());
-                this.elements.infoBtn?.addEventListener('click', () => this.getDeviceInfo());
-
-                // 명령어
-                this.elements.sendCommandBtn?.addEventListener('click', () => this.sendCommand());
-                this.elements.commandInput?.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') this.sendCommand();
-                });
-
-                // 화면 클릭
+                // 화면 클릭 (터치 입력)
                 this.elements.screenCanvas?.addEventListener('click', (e) => this.handleScreenClick(e));
 
                 // 키보드 단축키
                 document.addEventListener('keydown', (e) => {
                     switch (e.key) {
                         case '+':
-                            this.zoom = Math.min(this.zoom + 0.2, 3);
-                            this.updateScreenSize();
+                        case '=':
+                            this.zoomIn();
+                            e.preventDefault();
                             break;
                         case '-':
-                            this.zoom = Math.max(this.zoom - 0.2, 0.5);
-                            this.updateScreenSize();
+                            this.zoomOut();
+                            e.preventDefault();
                             break;
                         case 's':
                         case 'S':
                             if (e.ctrlKey) return;
-                            e.preventDefault();
                             this.saveImage();
+                            e.preventDefault();
+                            break;
+                        case 'f':
+                        case 'F':
+                            this.toggleFullscreen();
+                            e.preventDefault();
+                            break;
+                        case 'Escape':
+                            if (document.fullscreenElement) {
+                                document.exitFullscreen();
+                            }
                             break;
                     }
                 });
@@ -629,74 +466,31 @@
                 console.log('이벤트 리스너 설정 완료');
             }
 
-            initializeCanvases() {
-                console.log('캔버스 초기화 중...');
+            initializeCanvas() {
+                console.log('캔버스 초기화...');
                 
-                // 화면 미러링 캔버스
                 if (this.elements.screenCanvas) {
                     this.screenCtx = this.elements.screenCanvas.getContext('2d');
                     this.updateDeviceConfig();
+                    this.drawWaitingScreen();
                 }
-
-                // 스펙트럼 차트 캔버스
-                if (this.elements.spectrumChart) {
-                    this.spectrumCtx = this.elements.spectrumChart.getContext('2d');
-                    this.drawEmptyChart();
-                }
-
+                
                 console.log('캔버스 초기화 완료');
-            }
-
-            drawEmptyChart() {
-                if (!this.spectrumCtx) return;
-                
-                const width = this.elements.spectrumChart.width;
-                const height = this.elements.spectrumChart.height;
-                
-                // 배경
-                this.spectrumCtx.fillStyle = '#1a1a1a';
-                this.spectrumCtx.fillRect(0, 0, width, height);
-                
-                // 격자
-                this.spectrumCtx.strokeStyle = '#333';
-                this.spectrumCtx.lineWidth = 1;
-                
-                for (let i = 0; i <= 10; i++) {
-                    const x = (width * i) / 10;
-                    this.spectrumCtx.beginPath();
-                    this.spectrumCtx.moveTo(x, 0);
-                    this.spectrumCtx.lineTo(x, height);
-                    this.spectrumCtx.stroke();
-                }
-                
-                for (let i = 0; i <= 8; i++) {
-                    const y = (height * i) / 8;
-                    this.spectrumCtx.beginPath();
-                    this.spectrumCtx.moveTo(0, y);
-                    this.spectrumCtx.lineTo(width, y);
-                    this.spectrumCtx.stroke();
-                }
-                
-                // 안내 텍스트
-                this.spectrumCtx.fillStyle = '#888';
-                this.spectrumCtx.font = 'bold 16px Arial';
-                this.spectrumCtx.textAlign = 'center';
-                this.spectrumCtx.fillText('장비를 연결하세요', width / 2, height / 2);
             }
 
             updateDeviceConfig() {
                 const configs = {
-                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320, maxFreq: 5300, vid: 0x0483, pid: 0x5740 },
-                    'tinysa': { name: 'tinySA', width: 320, height: 240, maxFreq: 350, vid: 0x0483, pid: 0x5740 },
-                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240, maxFreq: 900, vid: 0x0483, pid: 0x5740 },
-                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320, maxFreq: 1500, vid: 0x0483, pid: 0x5740 }
+                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320 },
+                    'tinysa': { name: 'tinySA', width: 320, height: 240 },
+                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240 },
+                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320 }
                 };
 
                 const config = configs[this.deviceType];
                 if (config && this.elements.screenCanvas) {
                     this.elements.screenCanvas.width = config.width;
                     this.elements.screenCanvas.height = config.height;
-                    this.updateScreenSize();
+                    this.updateScreenDisplay();
                     
                     this.logToTerminal(`장비 설정: ${config.name} (${config.width}×${config.height})`);
                 }
@@ -704,117 +498,76 @@
                 return config;
             }
 
-            updateScreenSize() {
-                if (this.elements.deviceScreen) {
-                    this.elements.deviceScreen.style.transform = `scale(${this.zoom})`;
-                }
+            drawWaitingScreen() {
+                if (!this.screenCtx) return;
+                
+                const width = this.elements.screenCanvas.width;
+                const height = this.elements.screenCanvas.height;
+                
+                // 배경
+                this.screenCtx.fillStyle = '#000';
+                this.screenCtx.fillRect(0, 0, width, height);
+                
+                // 대기 메시지
+                this.screenCtx.fillStyle = '#888';
+                this.screenCtx.font = 'bold 20px Arial';
+                this.screenCtx.textAlign = 'center';
+                this.screenCtx.fillText('장비 연결 대기 중', width / 2, height / 2 - 10);
+                
+                this.screenCtx.font = '14px Arial';
+                this.screenCtx.fillText('USB 연결 후 "장비 연결" 클릭', width / 2, height / 2 + 20);
             }
 
             async connect() {
-                console.log('=== 장비 연결 시도 시작 ===');
+                console.log('장비 연결 시도...');
                 
                 if (!('serial' in navigator)) {
                     this.logToTerminal('❌ WebSerial API가 지원되지 않습니다');
-                    this.logToTerminal('💡 Chrome 89+ 또는 Edge 89+ 브라우저를 사용하세요');
                     return;
                 }
                 
-                if (this.elements.connectBtn) {
-                    this.elements.connectBtn.disabled = true;
-                }
-                
+                this.elements.connectBtn.disabled = true;
                 this.updateConnectionStatus('연결 중...');
                 this.logToTerminal('🔌 장비 연결 시도 중...');
-                this.logToTerminal('💡 USB 장비 목록이 나타나면 tinySA/NanoVNA를 선택하세요');
 
                 try {
-                    const config = this.updateDeviceConfig();
-                    console.log('장비 설정:', config);
-                    
-                    // 사용 가능한 포트 확인
-                    const ports = await navigator.serial.getPorts();
-                    console.log('기존 연결된 포트 수:', ports.length);
-                    this.logToTerminal(`기존 포트: ${ports.length}개 발견`);
-                    
-                    // 시리얼 포트 요청 (필터 없이 시도)
-                    this.logToTerminal('🔍 USB 장비 검색 중...');
-                    console.log('포트 요청 시도...');
-                    
-                    this.serialPort = await navigator.serial.requestPort({
-                        // 필터 제거하여 모든 USB 시리얼 장비 표시
-                        // filters: [
-                        //     { usbVendorId: config.vid, usbProductId: config.pid }
-                        // ]
-                    });
-                    
-                    console.log('포트 선택됨:', this.serialPort);
-                    this.logToTerminal('✅ 포트 선택됨');
+                    // 시리얼 포트 요청
+                    this.serialPort = await navigator.serial.requestPort();
                     
                     // 포트 정보 확인
-                    const portInfo = this.serialPort.getInfo();
-                    console.log('포트 정보:', portInfo);
-                    this.logToTerminal(`포트 정보: VID=0x${portInfo.usbVendorId?.toString(16)}, PID=0x${portInfo.usbProductId?.toString(16)}`);
+                    const info = this.serialPort.getInfo();
+                    this.logToTerminal(`포트 선택됨: VID=0x${info.usbVendorId?.toString(16) || '????'}, PID=0x${info.usbProductId?.toString(16) || '????'}`);
 
                     // 포트 열기
-                    this.logToTerminal('📡 포트 열기 중...');
                     await this.serialPort.open({
                         baudRate: 115200,
                         dataBits: 8,
                         stopBits: 1,
-                        parity: 'none',
-                        flowControl: 'none'
+                        parity: 'none'
                     });
-                    
-                    console.log('포트 열기 성공');
-                    this.logToTerminal('✅ 포트 열기 성공 (115200 bps)');
 
                     // Reader/Writer 설정
                     this.reader = this.serialPort.readable.getReader();
                     this.writer = this.serialPort.writable.getWriter();
-                    console.log('Reader/Writer 설정 완료');
 
                     this.isConnected = true;
                     this.updateConnectionStatus('연결됨');
-                    this.logToTerminal('🎉 장비 연결 성공!');
-                    this.logToTerminal('💡 이제 스캔이나 명령어를 사용할 수 있습니다');
+                    this.logToTerminal('✅ 장비 연결 성공');
                     
-                    // 초기 명령어 전송 (장비 확인)
-                    setTimeout(() => {
-                        this.sendCommand('info');
-                    }, 1000);
-                    
-                    // 데이터 수신 시작
-                    this.startDataCapture();
+                    // 화면 캡처 시작
+                    this.startScreenCapture();
                     
                 } catch (error) {
-                    console.error('=== 연결 실패 ===', error);
+                    console.error('연결 실패:', error);
                     
-                    let errorMsg = error.message;
                     if (error.name === 'NotFoundError') {
-                        errorMsg = '사용자가 포트 선택을 취소했습니다';
-                        this.logToTerminal('ℹ️ 포트 선택이 취소되었습니다');
-                    } else if (error.name === 'SecurityError') {
-                        errorMsg = '보안 오류 - HTTPS 환경에서 실행하세요';
-                        this.logToTerminal('❌ 보안 오류: HTTPS 환경 필요');
-                    } else if (error.name === 'NetworkError') {
-                        errorMsg = '장비 통신 오류 - USB 케이블과 드라이버를 확인하세요';
-                        this.logToTerminal('❌ 통신 오류: USB 연결 확인 필요');
+                        this.logToTerminal('ℹ️ 장비 선택이 취소되었습니다');
                     } else {
-                        this.logToTerminal(`❌ 연결 실패: ${errorMsg}`);
+                        this.logToTerminal(`❌ 연결 실패: ${error.message}`);
                     }
-                    
-                    this.logToTerminal('📋 연결 실패 해결 방법:');
-                    this.logToTerminal('1. USB 케이블이 제대로 연결되어 있는지 확인');
-                    this.logToTerminal('2. 장비가 켜져 있는지 확인');
-                    this.logToTerminal('3. 다른 프로그램에서 같은 장비를 사용 중이지 않은지 확인');
-                    this.logToTerminal('4. Chrome/Edge 브라우저 사용 확인');
-                    this.logToTerminal('5. HTTPS 환경 확인');
                     
                     this.updateConnectionStatus('연결 실패');
-                    
-                    if (this.elements.connectBtn) {
-                        this.elements.connectBtn.disabled = false;
-                    }
+                    this.elements.connectBtn.disabled = false;
                 }
             }
 
@@ -827,12 +580,12 @@
                 try {
                     if (this.reader) {
                         await this.reader.cancel();
-                        await this.reader.releaseLock();
+                        this.reader.releaseLock();
                         this.reader = null;
                     }
                     
                     if (this.writer) {
-                        await this.writer.releaseLock();
+                        this.writer.releaseLock();
                         this.writer = null;
                     }
                     
@@ -841,19 +594,12 @@
                         this.serialPort = null;
                     }
                 } catch (error) {
-                    console.error('연결 해제 중 오류:', error);
+                    console.error('연결 해제 오류:', error);
                 }
                 
                 this.updateConnectionStatus('연결 안됨');
                 this.logToTerminal('🔌 연결 해제됨');
-                
-                // 화면 초기화
-                if (this.screenCtx) {
-                    this.screenCtx.fillStyle = '#000';
-                    this.screenCtx.fillRect(0, 0, this.elements.screenCanvas.width, this.elements.screenCanvas.height);
-                }
-                
-                this.drawEmptyChart();
+                this.drawWaitingScreen();
             }
 
             updateConnectionStatus(status) {
@@ -873,156 +619,115 @@
                 // 버튼 상태 업데이트
                 if (this.elements.connectBtn) this.elements.connectBtn.disabled = this.isConnected;
                 if (this.elements.disconnectBtn) this.elements.disconnectBtn.disabled = !this.isConnected;
-                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = !this.isConnected;
-                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = !this.isConnected;
             }
 
-            async startDataCapture() {
-                console.log('=== 데이터 캡처 시작 ===');
+            async startScreenCapture() {
+                console.log('화면 캡처 시작...');
                 this.isCapturing = true;
-                this.logToTerminal('📡 데이터 수신 대기 중...');
+                this.logToTerminal('📺 화면 캡처 시작');
                 
                 try {
+                    // 화면 요청 명령 전송 (tinySA 명령어)
+                    await this.sendCommand('capture');
+                    
+                    // 데이터 수신 루프
                     while (this.isCapturing && this.reader) {
                         const { value, done } = await this.reader.read();
                         
-                        if (done) {
-                            console.log('데이터 스트림 종료');
-                            this.logToTerminal('📡 데이터 스트림 종료됨');
-                            break;
-                        }
+                        if (done) break;
                         
                         if (value && value.length > 0) {
-                            console.log('데이터 수신:', value.length, '바이트');
-                            this.processReceivedData(value);
+                            this.processScreenData(value);
                             this.updateFPS();
                         }
                     }
                 } catch (error) {
-                    console.error('데이터 수신 오류:', error);
-                    this.logToTerminal(`❌ 데이터 수신 오류: ${error.message}`);
-                    
-                    if (error.name === 'NetworkError') {
-                        this.logToTerminal('💡 장비 연결이 끊어졌을 수 있습니다');
-                        this.disconnect();
-                    }
+                    console.error('화면 캡처 오류:', error);
+                    this.logToTerminal(`❌ 화면 캡처 오류: ${error.message}`);
                 }
             }
 
-            processReceivedData(data) {
-                // 수신된 데이터 처리
+            processScreenData(data) {
+                // 수신된 데이터를 화면 이미지로 처리
+                // 실제 구현에서는 tinySA의 화면 데이터 형식에 맞게 파싱
+                
+                console.log('화면 데이터 수신:', data.length, '바이트');
+                
+                // 임시로 랜덤 패턴 표시 (실제로는 수신된 데이터 파싱)
+                this.drawReceivedData(data);
+            }
+
+            drawReceivedData(data) {
+                if (!this.screenCtx) return;
+                
+                const width = this.elements.screenCanvas.width;
+                const height = this.elements.screenCanvas.height;
+                
+                // 배경
+                this.screenCtx.fillStyle = '#000';
+                this.screenCtx.fillRect(0, 0, width, height);
+                
+                // 수신 데이터 표시
+                this.screenCtx.fillStyle = '#0f0';
+                this.screenCtx.font = '12px monospace';
+                this.screenCtx.textAlign = 'left';
+                this.screenCtx.fillText(`데이터 수신: ${data.length} 바이트`, 10, 20);
+                this.screenCtx.fillText(`시간: ${new Date().toLocaleTimeString()}`, 10, 40);
+                
+                // 간단한 시각화 (실제로는 화면 데이터 렌더링)
                 const decoder = new TextDecoder();
-                const text = decoder.decode(data);
+                const text = decoder.decode(data.slice(0, Math.min(100, data.length)));
+                const lines = text.split('\n');
                 
-                // 제어 문자 제거 및 정리
-                const cleanText = text.replace(/[\x00-\x1F\x7F]/g, '').trim();
-                
-                if (cleanText.length > 0) {
-                    console.log('수신 텍스트:', cleanText);
-                    this.logToTerminal(`📥 수신: ${cleanText.substring(0, 100)}${cleanText.length > 100 ? '...' : ''}`);
-                    
-                    // 데이터 파싱 시도
-                    this.parseIncomingData(cleanText);
-                }
+                lines.slice(0, 15).forEach((line, i) => {
+                    this.screenCtx.fillText(line.substring(0, 50), 10, 70 + i * 15);
+                });
             }
 
-            parseIncomingData(text) {
-                // tinySA 응답 파싱
-                if (text.includes('ch>')) {
-                    // 명령 프롬프트
-                    this.logToTerminal('💻 장비 준비됨');
-                } else if (text.includes('MHz')) {
-                    // 주파수 관련 응답
-                    this.logToTerminal(`📡 주파수 정보: ${text}`);
-                } else if (text.includes('dBm') || text.includes('dB')) {
-                    // 측정값 응답
-                    this.logToTerminal(`📊 측정값: ${text}`);
-                } else if (text.includes('tinySA') || text.includes('NanoVNA')) {
-                    // 장비 정보
-                    this.logToTerminal(`ℹ️ 장비: ${text}`);
-                } else {
-                    // 기타 응답
-                    console.log('기타 응답:', text);
-                }
-            }
-
-            async sendCommand(command = null) {
-                if (!this.isConnected || !this.writer) {
-                    this.logToTerminal('❌ 장비가 연결되지 않았습니다');
-                    return;
-                }
-                
-                const cmd = command || this.elements.commandInput?.value?.trim();
-                if (!cmd) return;
+            async sendCommand(command) {
+                if (!this.isConnected || !this.writer) return;
                 
                 try {
                     const encoder = new TextEncoder();
-                    const data = encoder.encode(cmd + '\r\n');
+                    const data = encoder.encode(command + '\r\n');
                     await this.writer.write(data);
-                    
-                    this.logToTerminal(`💻 전송: ${cmd}`);
-                    
-                    if (this.elements.commandInput) {
-                        this.elements.commandInput.value = '';
-                    }
+                    this.logToTerminal(`💻 전송: ${command}`);
                 } catch (error) {
                     console.error('명령 전송 실패:', error);
                     this.logToTerminal(`❌ 명령 전송 실패: ${error.message}`);
                 }
             }
 
-            async setFrequencies() {
-                const start = this.elements.startFreq?.value || 100;
-                const stop = this.elements.stopFreq?.value || 1000;
-                const points = this.elements.points?.value || 101;
+            handleScreenClick(event) {
+                if (!this.isConnected) return;
                 
-                this.logToTerminal(`📡 주파수 설정: ${start}-${stop}MHz, ${points}포인트`);
+                const rect = this.elements.screenCanvas.getBoundingClientRect();
+                const scaleX = this.elements.screenCanvas.width / rect.width;
+                const scaleY = this.elements.screenCanvas.height / rect.height;
+                const x = Math.floor((event.clientX - rect.left) * scaleX);
+                const y = Math.floor((event.clientY - rect.top) * scaleY);
                 
-                // 실제 tinySA 명령어 전송
-                await this.sendCommand(`sweep start ${start}000000`);
-                await this.sendCommand(`sweep stop ${stop}000000`);
-                await this.sendCommand(`sweep points ${points}`);
+                this.logToTerminal(`👆 터치: (${x}, ${y})`);
+                this.sendCommand(`touch ${x} ${y}`);
             }
 
-            async startScan() {
-                this.logToTerminal('📊 스펙트럼 스캔 시작...');
-                await this.sendCommand('scan');
+            zoomIn() {
+                this.zoom = Math.min(this.zoom + 0.25, 3);
+                this.updateScreenDisplay();
             }
 
-            async startSweep() {
-                this.logToTerminal('📈 S-parameter 측정 시작...');
-                await this.sendCommand('sweep');
+            zoomOut() {
+                this.zoom = Math.max(this.zoom - 0.25, 0.5);
+                this.updateScreenDisplay();
             }
 
-            pauseCapture() {
-                this.isPaused = true;
-                this.logToTerminal('⏸️ 일시정지');
-            }
-
-            resumeCapture() {
-                this.isPaused = false;
-                this.logToTerminal('▶️ 재개');
-            }
-
-            async calibrate() {
-                this.logToTerminal('🎯 캘리브레이션 실행...');
-                await this.sendCommand('cal');
-            }
-
-            async saveCalibration() {
-                this.logToTerminal('💾 캘리브레이션 저장...');
-                await this.sendCommand('save');
-            }
-
-            async loadCalibration() {
-                this.logToTerminal('📂 캘리브레이션 로드...');
-                await this.sendCommand('recall');
-            }
-
-            saveData() {
-                this.logToTerminal('💾 측정 데이터 저장...');
-                const data = JSON.stringify(this.spectrumData, null, 2);
-                this.downloadFile(data, 'spectrum_data.json', 'application/json');
+            updateScreenDisplay() {
+                if (this.elements.deviceScreen) {
+                    this.elements.deviceScreen.style.transform = `scale(${this.zoom})`;
+                }
+                if (this.elements.zoomLevel) {
+                    this.elements.zoomLevel.textContent = `${Math.round(this.zoom * 100)}%`;
+                }
             }
 
             saveImage() {
@@ -1033,47 +738,33 @@
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `spectrum_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+                        a.download = `screen_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
                         a.click();
                         URL.revokeObjectURL(url);
                     });
                 }
             }
 
-            exportCsv() {
-                this.logToTerminal('📊 CSV 내보내기...');
-                let csv = 'Frequency(Hz),Power(dBm)\n';
-                for (let i = 0; i < this.spectrumData.frequencies.length; i++) {
-                    csv += `${this.spectrumData.frequencies[i]},${this.spectrumData.powers[i]}\n`;
+            toggleFullscreen() {
+                const container = this.elements.deviceScreen.parentElement;
+                
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen().then(() => {
+                        this.logToTerminal('🔳 전체화면 모드');
+                    }).catch((err) => {
+                        this.logToTerminal(`❌ 전체화면 실패: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen().then(() => {
+                        this.logToTerminal('🔳 전체화면 해제');
+                    });
                 }
-                this.downloadFile(csv, 'spectrum_data.csv', 'text/csv');
             }
 
-            async systemReset() {
-                this.logToTerminal('🔄 시스템 리셋...');
-                await this.sendCommand('reset');
-            }
-
-            async checkBattery() {
-                this.logToTerminal('🔋 배터리 체크...');
-                await this.sendCommand('vbat');
-            }
-
-            async getDeviceInfo() {
-                this.logToTerminal('ℹ️ 장비 정보 조회...');
-                await this.sendCommand('info');
-            }
-
-            handleScreenClick(event) {
-                if (!this.isConnected) return;
-                
-                const rect = this.elements.screenCanvas.getBoundingClientRect();
-                const x = Math.floor((event.clientX - rect.left) * (this.elements.screenCanvas.width / rect.width));
-                const y = Math.floor((event.clientY - rect.top) * (this.elements.screenCanvas.height / rect.height));
-                
-                this.logToTerminal(`👆 터치: (${x}, ${y})`);
-                // 실제 터치 명령 전송
-                this.sendCommand(`touch ${x} ${y}`);
+            clearLog() {
+                if (this.elements.terminal) {
+                    this.elements.terminal.innerHTML = '<div class="terminal-line">로그가 지워졌습니다.</div>';
+                }
             }
 
             updateFPS() {
@@ -1089,54 +780,6 @@
                         this.elements.fpsDisplay.textContent = this.fps.toString();
                     }
                 }
-            }
-
-            // 진단 기능 추가
-            async diagnoseConnection() {
-                this.logToTerminal('🔍 연결 진단 시작...');
-                
-                // 1. WebSerial 지원 확인
-                const hasSerial = 'serial' in navigator;
-                this.logToTerminal(`WebSerial API: ${hasSerial ? '✅ 지원됨' : '❌ 미지원'}`);
-                
-                // 2. 프로토콜 확인
-                const isSecure = window.location.protocol === 'https:' || 
-                               window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
-                this.logToTerminal(`보안 환경: ${isSecure ? '✅ OK' : '❌ HTTPS 필요'}`);
-                
-                // 3. 브라우저 확인
-                const userAgent = navigator.userAgent;
-                const isChrome = userAgent.includes('Chrome');
-                const isEdge = userAgent.includes('Edg');
-                this.logToTerminal(`브라우저: ${isChrome ? 'Chrome' : isEdge ? 'Edge' : '기타'} ${isChrome || isEdge ? '✅' : '❌'}`);
-                
-                // 4. 기존 포트 확인
-                if (hasSerial) {
-                    try {
-                        const ports = await navigator.serial.getPorts();
-                        this.logToTerminal(`기존 포트: ${ports.length}개`);
-                        
-                        ports.forEach((port, index) => {
-                            const info = port.getInfo();
-                            this.logToTerminal(`포트 ${index + 1}: VID=0x${info.usbVendorId?.toString(16) || '????'}, PID=0x${info.usbProductId?.toString(16) || '????'}`);
-                        });
-                    } catch (error) {
-                        this.logToTerminal(`포트 조회 실패: ${error.message}`);
-                    }
-                }
-                
-                this.logToTerminal('🔍 진단 완료');
-            }
-
-            downloadFile(content, filename, contentType) {
-                const blob = new Blob([content], { type: contentType });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
             }
 
             logToTerminal(message) {
@@ -1157,25 +800,6 @@
                     }
                 }
             }
-
-            logToTerminal(message) {
-                console.log(message);
-                
-                if (this.elements.terminal) {
-                    const timestamp = new Date().toLocaleTimeString();
-                    const line = document.createElement('div');
-                    line.className = 'terminal-line';
-                    line.textContent = `[${timestamp}] ${message}`;
-                    this.elements.terminal.appendChild(line);
-                    this.elements.terminal.scrollTop = this.elements.terminal.scrollHeight;
-                    
-                    // 로그 라인 수 제한
-                    const lines = this.elements.terminal.children;
-                    if (lines.length > 50) {
-                        lines[0].remove();
-                    }
-                }
-            }
         }
 
         // 애플리케이션 시작
@@ -1183,10 +807,10 @@
             console.log('DOM 로드 완료');
             
             try {
-                window.controller = new TinySAController();
-                console.log('✅ 애플리케이션 시작 성공');
+                window.screenMirror = new ScreenMirror();
+                console.log('✅ 화면 미러링 시스템 시작 성공');
             } catch (error) {
-                console.error('❌ 애플리케이션 시작 실패:', error);
+                console.error('❌ 시스템 시작 실패:', error);
             }
         });
     </script>
