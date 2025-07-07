@@ -293,6 +293,7 @@
                 </div>
                 <button id="saveImageBtn">📸 스크린샷 저장</button>
                 <button id="fullscreenBtn">🔳 전체화면</button>
+                <button id="testSpectrumBtn" style="background: linear-gradient(45deg, #ff9800, #f57c00);">🧪 테스트 스펙트럼</button>
             </div>
 
             <!-- 통신 로그 -->
@@ -411,6 +412,7 @@
                     zoomLevel: document.getElementById('zoomLevel'),
                     saveImageBtn: document.getElementById('saveImageBtn'),
                     fullscreenBtn: document.getElementById('fullscreenBtn'),
+                    testSpectrumBtn: document.getElementById('testSpectrumBtn'),
                     clearLogBtn: document.getElementById('clearLogBtn'),
                     deviceScreen: document.getElementById('deviceScreen'),
                     screenOverlay: document.getElementById('screenOverlay'),
@@ -788,39 +790,66 @@
             processTextLine(line) {
                 if (!line) return;
                 
-                console.log('처리할 라인:', line);
+                console.log('=== 텍스트 라인 처리 ===');
+                console.log('라인 길이:', line.length);
+                console.log('라인 내용:', JSON.stringify(line));
                 
                 // 스펙트럼 데이터 패턴 감지
-                if (this.isSpectrumDataLine(line)) {
+                const isSpectrumData = this.isSpectrumDataLine(line);
+                console.log('스펙트럼 데이터 여부:', isSpectrumData);
+                
+                if (isSpectrumData) {
+                    console.log('>> 스펙트럼 데이터로 처리');
                     this.parseSpectrumDataLine(line);
                 } else if (line.includes('scan start') || line.includes('scanning')) {
+                    console.log('>> 스캔 시작 신호');
                     this.spectrumData.isScanning = true;
                     this.spectrumData.scanStartTime = Date.now();
                     this.logToTerminal('🔄 스캔 진행 중...');
                 } else if (line.includes('scan complete') || line.includes('done')) {
+                    console.log('>> 스캔 완료 신호');
                     this.handleScanComplete();
                 } else if (line.includes('ch>') || line.includes('tinySA')) {
-                    // 명령 프롬프트
+                    console.log('>> 명령 프롬프트');
                     this.logToTerminal(`💻 ${line}`);
                 } else if (line.length > 10) {
-                    // 기타 의미있는 응답
+                    console.log('>> 기타 응답 (길이 10+ 문자)');
                     this.logToTerminal(`📥 ${line.substring(0, 80)}${line.length > 80 ? '...' : ''}`);
+                } else {
+                    console.log('>> 짧은 응답 무시');
                 }
+                
+                console.log('=== 텍스트 라인 처리 종료 ===');
             }
 
             isSpectrumDataLine(line) {
+                console.log('스펙트럼 데이터 패턴 검사:', JSON.stringify(line));
+                
                 // 스펙트럼 데이터 패턴들
                 const patterns = [
-                    /^\d+\s+[-]?\d+/,           // "100000000 -60" 형식
-                    /^\d+,\s*[-]?\d+/,          // "100000000, -60" 형식  
-                    /^[-]?\d+\.?\d*$/,          // "-60.5" (파워만)
-                    /^\d+\.?\d*[MG]?Hz\s+[-]?\d+/, // "100MHz -60" 형식
+                    { name: '숫자 공백 숫자', regex: /^\d+\s+[-]?\d+/ },
+                    { name: '숫자 쉼표 숫자', regex: /^\d+,\s*[-]?\d+/ },
+                    { name: '파워값만', regex: /^[-]?\d+\.?\d*$/ },
+                    { name: 'MHz 형식', regex: /^\d+\.?\d*[MG]?Hz\s+[-]?\d+/ },
                 ];
                 
-                return patterns.some(pattern => pattern.test(line));
+                for (const pattern of patterns) {
+                    const matches = pattern.regex.test(line);
+                    console.log(`패턴 "${pattern.name}": ${matches ? '매치' : '불일치'}`);
+                    if (matches) {
+                        console.log('-> 스펙트럼 데이터로 인식');
+                        return true;
+                    }
+                }
+                
+                console.log('-> 스펙트럼 데이터 아님');
+                return false;
             }
 
             parseSpectrumDataLine(line) {
+                console.log('=== 스펙트럼 데이터 라인 파싱 ===');
+                console.log('입력 라인:', JSON.stringify(line));
+                
                 try {
                     let frequency = null;
                     let power = null;
@@ -834,50 +863,95 @@
                             if (match[2] === 'M') frequency *= 1e6;
                             if (match[2] === 'G') frequency *= 1e9;
                             power = parseFloat(match[3]);
+                            console.log('Hz 패턴 매치:', { raw: match[1], unit: match[2], frequency, power });
                         }
                     } else if (line.includes(',')) {
                         // "100000000, -60" 형식
                         const parts = line.split(',');
+                        console.log('쉼표 분할:', parts);
                         if (parts.length >= 2) {
                             frequency = parseFloat(parts[0].trim());
                             power = parseFloat(parts[1].trim());
+                            console.log('쉼표 패턴 파싱:', { frequency, power });
                         }
                     } else if (line.includes(' ')) {
                         // "100000000 -60" 형식
                         const parts = line.trim().split(/\s+/);
+                        console.log('공백 분할:', parts);
                         if (parts.length >= 2) {
-                            frequency = parseFloat(parts[0]);
-                            power = parseFloat(parts[1]);
+                            const freq1 = parseFloat(parts[0]);
+                            const pow1 = parseFloat(parts[1]);
+                            console.log('공백 패턴 파싱 시도:', { freq1, pow1, isValidFreq: !isNaN(freq1), isValidPower: !isNaN(pow1) });
+                            
+                            if (!isNaN(freq1) && !isNaN(pow1)) {
+                                frequency = freq1;
+                                power = pow1;
+                                console.log('공백 패턴 성공:', { frequency, power });
+                            }
                         }
                     } else {
                         // 파워 값만 있는 경우
-                        power = parseFloat(line);
-                        // 주파수는 순서대로 계산
-                        if (this.spectrumData.powers.length === 0) {
-                            frequency = 100e6; // 시작 주파수
-                        } else {
-                            const step = (1000e6 - 100e6) / 100; // 스텝 크기
-                            frequency = 100e6 + this.spectrumData.powers.length * step;
+                        const pow = parseFloat(line);
+                        console.log('파워만 파싱 시도:', { input: line, power: pow, isValid: !isNaN(pow) });
+                        
+                        if (!isNaN(pow)) {
+                            power = pow;
+                            // 주파수는 순서대로 계산
+                            if (this.spectrumData.powers.length === 0) {
+                                frequency = 100e6; // 시작 주파수
+                                console.log('첫 번째 포인트, 시작 주파수 사용:', frequency);
+                            } else {
+                                const step = (1000e6 - 100e6) / 100; // 스텝 크기
+                                frequency = 100e6 + this.spectrumData.powers.length * step;
+                                console.log('순서 기반 주파수 계산:', { step, index: this.spectrumData.powers.length, frequency });
+                            }
                         }
                     }
                     
+                    console.log('최종 파싱 결과:', { frequency, power, freqValid: frequency !== null, powerValid: power !== null });
+                    
                     if (frequency !== null && power !== null && !isNaN(frequency) && !isNaN(power)) {
+                        // 주파수 범위 검증
+                        if (frequency < 1e3 || frequency > 10e9) {
+                            console.warn('주파수 범위 초과:', frequency, 'Hz');
+                            // 단위 변환 시도
+                            if (frequency < 1e3) {
+                                frequency *= 1e6; // MHz로 가정
+                                console.log('MHz 단위로 변환:', frequency);
+                            }
+                        }
+                        
+                        // 파워 범위 검증
+                        if (power < -200 || power > 100) {
+                            console.warn('파워 범위 초과:', power, 'dBm');
+                        }
+                        
+                        console.log('유효한 데이터 포인트 추가:', { frequency: frequency/1e6 + 'MHz', power: power + 'dBm' });
                         this.addSpectrumPoint(frequency, power);
                         
                         // 첫 데이터 수신 시 로그
                         if (this.spectrumData.frequencies.length === 1) {
                             this.logToTerminal(`📊 스펙트럼 데이터 수신 시작 (첫 포인트: ${(frequency/1e6).toFixed(1)}MHz, ${power}dBm)`);
                         }
+                    } else {
+                        console.log('유효하지 않은 데이터, 무시됨');
                     }
                     
                 } catch (error) {
                     console.error('스펙트럼 데이터 파싱 오류:', error, '라인:', line);
                 }
+                
+                console.log('=== 스펙트럼 데이터 라인 파싱 종료 ===');
             }
 
             addSpectrumPoint(frequency, power) {
+                console.log('=== 스펙트럼 포인트 추가 ===');
+                console.log('입력:', { frequency: frequency/1e6 + 'MHz', power: power + 'dBm' });
+                console.log('현재 데이터 수:', this.spectrumData.frequencies.length);
+                
                 // 새 스캔 시작 시 데이터 초기화
                 if (this.spectrumData.frequencies.length === 0) {
+                    console.log('새 스캔 시작 - 데이터 초기화');
                     this.spectrumData.frequencies = [];
                     this.spectrumData.powers = [];
                 }
@@ -885,10 +959,23 @@
                 this.spectrumData.frequencies.push(frequency);
                 this.spectrumData.powers.push(power);
                 
+                console.log('추가 후 데이터 수:', this.spectrumData.frequencies.length);
+                console.log('전체 주파수 범위:', {
+                    min: Math.min(...this.spectrumData.frequencies) / 1e6 + 'MHz',
+                    max: Math.max(...this.spectrumData.frequencies) / 1e6 + 'MHz'
+                });
+                console.log('전체 파워 범위:', {
+                    min: Math.min(...this.spectrumData.powers) + 'dBm',
+                    max: Math.max(...this.spectrumData.powers) + 'dBm'
+                });
+                
                 // 실시간 업데이트 (부분적)
                 if (this.spectrumData.frequencies.length % 10 === 0) {
+                    console.log('10개 포인트마다 업데이트 실행');
                     this.updateSpectrumDisplay();
                 }
+                
+                console.log('=== 스펙트럼 포인트 추가 종료 ===');
             }
 
             handleScanComplete() {
@@ -984,15 +1071,62 @@
             drawSpectrumLine(width, height) {
                 if (this.spectrumData.frequencies.length < 2) return;
                 
+                console.log('=== 스펙트럼 라인 그리기 시작 ===');
+                console.log('데이터 포인트 수:', this.spectrumData.frequencies.length);
+                console.log('첫 번째 주파수:', this.spectrumData.frequencies[0]);
+                console.log('마지막 주파수:', this.spectrumData.frequencies[this.spectrumData.frequencies.length - 1]);
+                console.log('첫 번째 파워:', this.spectrumData.powers[0]);
+                console.log('마지막 파워:', this.spectrumData.powers[this.spectrumData.powers.length - 1]);
+                
                 const minFreq = Math.min(...this.spectrumData.frequencies);
                 const maxFreq = Math.max(...this.spectrumData.frequencies);
                 const minPower = Math.min(...this.spectrumData.powers);
                 const maxPower = Math.max(...this.spectrumData.powers);
                 
-                const freqRange = maxFreq - minFreq || 1;
+                console.log(`주파수 범위: ${minFreq} ~ ${maxFreq} (차이: ${maxFreq - minFreq})`);
+                console.log(`파워 범위: ${minPower} ~ ${maxPower} (차이: ${maxPower - minPower})`);
+                
+                const freqRange = maxFreq - minFreq;
                 const powerRange = Math.max(maxPower - minPower, 10); // 최소 10dB 범위
                 
-                // 스펙트럼 라인
+                // 주파수 범위가 너무 작은 경우 문제
+                if (freqRange < 1000) { // 1kHz 미만
+                    console.warn('주파수 범위가 너무 작습니다:', freqRange);
+                    // 임시로 더 큰 범위 사용
+                    const centerFreq = (minFreq + maxFreq) / 2;
+                    const expandedRange = Math.max(freqRange, 100e6); // 최소 100MHz 범위
+                    const newMinFreq = centerFreq - expandedRange / 2;
+                    const newMaxFreq = centerFreq + expandedRange / 2;
+                    
+                    console.log(`확장된 주파수 범위: ${newMinFreq} ~ ${newMaxFreq}`);
+                    
+                    // 스펙트럼 라인 (확장된 범위 사용)
+                    this.screenCtx.strokeStyle = '#00ff00';
+                    this.screenCtx.lineWidth = 2;
+                    this.screenCtx.beginPath();
+                    
+                    for (let i = 0; i < this.spectrumData.frequencies.length; i++) {
+                        const x = ((this.spectrumData.frequencies[i] - newMinFreq) / expandedRange) * width;
+                        const y = height - ((this.spectrumData.powers[i] - minPower) / powerRange) * height * 0.8 - height * 0.1;
+                        
+                        console.log(`포인트 ${i}: freq=${this.spectrumData.frequencies[i]}, power=${this.spectrumData.powers[i]}, x=${x.toFixed(1)}, y=${y.toFixed(1)}`);
+                        
+                        if (i === 0) {
+                            this.screenCtx.moveTo(x, y);
+                        } else {
+                            this.screenCtx.lineTo(x, y);
+                        }
+                        
+                        // 데이터 포인트 표시 (디버깅용)
+                        this.screenCtx.fillStyle = '#ff0000';
+                        this.screenCtx.fillRect(x - 1, y - 1, 2, 2);
+                    }
+                    
+                    this.screenCtx.stroke();
+                    return;
+                }
+                
+                // 정상적인 경우
                 this.screenCtx.strokeStyle = '#00ff00';
                 this.screenCtx.lineWidth = 2;
                 this.screenCtx.beginPath();
@@ -1003,11 +1137,26 @@
                     const x = ((this.spectrumData.frequencies[i] - minFreq) / freqRange) * width;
                     const y = height - ((this.spectrumData.powers[i] - minPower) / powerRange) * height * 0.8 - height * 0.1;
                     
+                    // 좌표 유효성 검사
+                    if (isNaN(x) || isNaN(y)) {
+                        console.warn(`잘못된 좌표: i=${i}, freq=${this.spectrumData.frequencies[i]}, power=${this.spectrumData.powers[i]}, x=${x}, y=${y}`);
+                        continue;
+                    }
+                    
                     if (i === 0) {
                         this.screenCtx.moveTo(x, y);
+                        console.log(`시작점: x=${x.toFixed(1)}, y=${y.toFixed(1)}`);
                     } else {
                         this.screenCtx.lineTo(x, y);
                     }
+                    
+                    // 일부 포인트에 마커 표시 (디버깅용)
+                    if (i % 10 === 0) {
+                        this.screenCtx.fillStyle = '#ffff00';
+                        this.screenCtx.fillRect(x - 1, y - 1, 2, 2);
+                        console.log(`마커 ${i}: x=${x.toFixed(1)}, y=${y.toFixed(1)}, freq=${(this.spectrumData.frequencies[i]/1e6).toFixed(1)}MHz, power=${this.spectrumData.powers[i].toFixed(1)}dBm`);
+                    }
+                    
                     pointsDrawn++;
                 }
                 
@@ -1023,9 +1172,12 @@
                     this.screenCtx.beginPath();
                     this.screenCtx.arc(peakX, peakY, 4, 0, 2 * Math.PI);
                     this.screenCtx.fill();
+                    
+                    console.log(`피크 마커: x=${peakX.toFixed(1)}, y=${peakY.toFixed(1)}`);
                 }
                 
                 console.log(`스펙트럼 그래프 그리기 완료: ${pointsDrawn}개 포인트`);
+                console.log('=== 스펙트럼 라인 그리기 종료 ===');
             }
 
             drawSpectrumInfo(width, height) {
