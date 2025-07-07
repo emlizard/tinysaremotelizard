@@ -344,6 +344,7 @@
                 this.fps = 0;
                 this.frameCount = 0;
                 this.lastFpsUpdate = Date.now();
+                this.captureInterval = null;
                 
                 // 초기화
                 this.initializeElements();
@@ -626,38 +627,231 @@
                 this.isCapturing = true;
                 this.logToTerminal('📺 화면 캡처 시작');
                 
+                // tinySA 화면 캡처 명령어들
+                this.logToTerminal('📡 tinySA 화면 모드 설정 중...');
+                
                 try {
-                    // 화면 요청 명령 전송 (tinySA 명령어)
-                    await this.sendCommand('capture');
+                    // tinySA Ultra 화면 캡처 명령어 시퀀스
+                    await this.sleep(500);
+                    await this.sendCommand('capture on');  // 화면 캡처 모드 활성화
+                    await this.sleep(500);
+                    await this.sendCommand('capture continuous'); // 연속 캡처 모드
+                    await this.sleep(500);
+                    
+                    this.logToTerminal('🔄 실시간 화면 수신 시작...');
+                    
+                    // 주기적으로 화면 요청
+                    this.captureInterval = setInterval(() => {
+                        if (this.isCapturing) {
+                            this.requestScreenUpdate();
+                        }
+                    }, 100); // 10 FPS
                     
                     // 데이터 수신 루프
-                    while (this.isCapturing && this.reader) {
-                        const { value, done } = await this.reader.read();
-                        
-                        if (done) break;
-                        
-                        if (value && value.length > 0) {
-                            this.processScreenData(value);
-                            this.updateFPS();
-                        }
-                    }
+                    this.startDataReceiving();
+                    
                 } catch (error) {
                     console.error('화면 캡처 오류:', error);
                     this.logToTerminal(`❌ 화면 캡처 오류: ${error.message}`);
                 }
             }
 
-            processScreenData(data) {
-                // 수신된 데이터를 화면 이미지로 처리
-                // 실제 구현에서는 tinySA의 화면 데이터 형식에 맞게 파싱
-                
-                console.log('화면 데이터 수신:', data.length, '바이트');
-                
-                // 임시로 랜덤 패턴 표시 (실제로는 수신된 데이터 파싱)
-                this.drawReceivedData(data);
+            async startDataReceiving() {
+                try {
+                    while (this.isCapturing && this.reader) {
+                        const { value, done } = await this.reader.read();
+                        
+                        if (done) break;
+                        
+                        if (value && value.length > 0) {
+                            this.processReceivedData(value);
+                        }
+                    }
+                } catch (error) {
+                    console.error('데이터 수신 오류:', error);
+                    this.logToTerminal(`❌ 데이터 수신 오류: ${error.message}`);
+                }
             }
 
-            drawReceivedData(data) {
+            async requestScreenUpdate() {
+                try {
+                    // tinySA 화면 갱신 요청
+                    await this.sendCommand('capture');
+                } catch (error) {
+                    console.log('화면 갱신 요청 실패:', error);
+                }
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            processReceivedData(data) {
+                // 수신된 데이터 처리
+                console.log('데이터 수신:', data.length, '바이트');
+                
+                // 데이터 유형 확인
+                const decoder = new TextDecoder();
+                let text = '';
+                
+                try {
+                    text = decoder.decode(data);
+                } catch (e) {
+                    // 바이너리 데이터일 수 있음
+                    console.log('바이너리 데이터 수신');
+                    this.processBinaryScreenData(data);
+                    return;
+                }
+                
+                // 텍스트 응답 처리
+                if (text.includes('ch>') || text.includes('tinySA')) {
+                    // 명령 응답
+                    this.logToTerminal(`📥 응답: ${text.trim()}`);
+                } else if (text.includes('capture') || text.includes('screen')) {
+                    // 화면 관련 응답
+                    this.logToTerminal(`📺 화면: ${text.trim()}`);
+                } else if (data.length > 100) {
+                    // 큰 데이터는 화면 데이터일 가능성
+                    this.logToTerminal(`📊 화면 데이터 수신: ${data.length} 바이트`);
+                    this.parseScreenData(data);
+                } else {
+                    // 기타 응답
+                    this.logToTerminal(`📥 수신: ${text.trim()}`);
+                }
+                
+                this.updateFPS();
+            }
+
+            processBinaryScreenData(data) {
+                console.log('바이너리 화면 데이터 처리:', data.length);
+                
+                // tinySA Ultra 화면 데이터는 보통 비트맵 형식
+                if (data.length > 1000) { // 충분히 큰 데이터
+                    this.renderBitmapData(data);
+                } else {
+                    this.logToTerminal(`📊 바이너리 데이터: ${data.length} 바이트`);
+                }
+            }
+
+            parseScreenData(data) {
+                // 화면 데이터 파싱 시도
+                try {
+                    if (data[0] === 0x42 && data[1] === 0x4D) {
+                        // BMP 헤더 발견
+                        this.logToTerminal('🖼️ BMP 이미지 데이터 감지');
+                        this.renderBitmapFromData(data);
+                    } else if (data.length >= 320 * 240) {
+                        // Raw 화면 데이터 (320x240 minimum)
+                        this.logToTerminal('📺 Raw 화면 데이터 감지');
+                        this.renderRawScreenData(data);
+                    } else {
+                        // 기타 데이터
+                        this.drawDataVisualization(data);
+                    }
+                } catch (error) {
+                    console.error('화면 데이터 파싱 오류:', error);
+                    this.drawDataVisualization(data);
+                }
+            }
+
+            renderBitmapFromData(data) {
+                try {
+                    const blob = new Blob([data], { type: 'image/bmp' });
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        if (this.screenCtx) {
+                            const canvas = this.elements.screenCanvas;
+                            this.screenCtx.clearRect(0, 0, canvas.width, canvas.height);
+                            this.screenCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        }
+                        URL.revokeObjectURL(url);
+                        this.logToTerminal('✅ BMP 이미지 렌더링 완료');
+                    };
+                    
+                    img.onerror = () => {
+                        URL.revokeObjectURL(url);
+                        this.logToTerminal('❌ BMP 이미지 로드 실패');
+                        this.drawDataVisualization(data);
+                    };
+                    
+                    img.src = url;
+                } catch (error) {
+                    console.error('BMP 렌더링 오류:', error);
+                    this.drawDataVisualization(data);
+                }
+            }
+
+            renderRawScreenData(data) {
+                if (!this.screenCtx) return;
+                
+                const canvas = this.elements.screenCanvas;
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // ImageData 생성
+                const imageData = this.screenCtx.createImageData(width, height);
+                const pixels = imageData.data;
+                
+                // Raw 데이터를 픽셀로 변환 (간단한 그레이스케일)
+                for (let i = 0; i < Math.min(data.length, width * height); i++) {
+                    const pixelIndex = i * 4;
+                    const value = data[i];
+                    
+                    pixels[pixelIndex] = value;     // R
+                    pixels[pixelIndex + 1] = value; // G
+                    pixels[pixelIndex + 2] = value; // B
+                    pixels[pixelIndex + 3] = 255;   // A
+                }
+                
+                this.screenCtx.putImageData(imageData, 0, 0);
+                this.logToTerminal('✅ Raw 화면 데이터 렌더링 완료');
+            }
+
+            renderBitmapData(data) {
+                if (!this.screenCtx) return;
+                
+                try {
+                    // 16비트 RGB565 또는 다른 형식일 수 있음
+                    const canvas = this.elements.screenCanvas;
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    
+                    this.screenCtx.fillStyle = '#000';
+                    this.screenCtx.fillRect(0, 0, width, height);
+                    
+                    // 데이터를 시각화
+                    const imageData = this.screenCtx.createImageData(width, height);
+                    const pixels = imageData.data;
+                    
+                    // 16비트 데이터라고 가정하고 변환
+                    for (let i = 0; i < Math.min(data.length / 2, width * height); i++) {
+                        const pixelIndex = i * 4;
+                        const dataIndex = i * 2;
+                        
+                        // 16비트 RGB565 디코딩
+                        const rgb565 = (data[dataIndex + 1] << 8) | data[dataIndex];
+                        const r = ((rgb565 >> 11) & 0x1F) << 3;
+                        const g = ((rgb565 >> 5) & 0x3F) << 2;
+                        const b = (rgb565 & 0x1F) << 3;
+                        
+                        pixels[pixelIndex] = r;     // R
+                        pixels[pixelIndex + 1] = g; // G
+                        pixels[pixelIndex + 2] = b; // B
+                        pixels[pixelIndex + 3] = 255; // A
+                    }
+                    
+                    this.screenCtx.putImageData(imageData, 0, 0);
+                    this.logToTerminal('✅ 16비트 비트맵 렌더링 완료');
+                    
+                } catch (error) {
+                    console.error('비트맵 렌더링 오류:', error);
+                    this.drawDataVisualization(data);
+                }
+            }
+
+            drawDataVisualization(data) {
                 if (!this.screenCtx) return;
                 
                 const width = this.elements.screenCanvas.width;
@@ -667,21 +861,55 @@
                 this.screenCtx.fillStyle = '#000';
                 this.screenCtx.fillRect(0, 0, width, height);
                 
-                // 수신 데이터 표시
+                // 데이터 정보 표시
                 this.screenCtx.fillStyle = '#0f0';
-                this.screenCtx.font = '12px monospace';
+                this.screenCtx.font = '14px monospace';
                 this.screenCtx.textAlign = 'left';
-                this.screenCtx.fillText(`데이터 수신: ${data.length} 바이트`, 10, 20);
-                this.screenCtx.fillText(`시간: ${new Date().toLocaleTimeString()}`, 10, 40);
                 
-                // 간단한 시각화 (실제로는 화면 데이터 렌더링)
-                const decoder = new TextDecoder();
-                const text = decoder.decode(data.slice(0, Math.min(100, data.length)));
-                const lines = text.split('\n');
+                this.screenCtx.fillText(`데이터 크기: ${data.length} 바이트`, 10, 25);
+                this.screenCtx.fillText(`시간: ${new Date().toLocaleTimeString()}`, 10, 45);
                 
-                lines.slice(0, 15).forEach((line, i) => {
-                    this.screenCtx.fillText(line.substring(0, 50), 10, 70 + i * 15);
-                });
+                // 첫 몇 바이트 16진수로 표시
+                this.screenCtx.fillStyle = '#888';
+                this.screenCtx.font = '10px monospace';
+                
+                const hexData = Array.from(data.slice(0, 32)).map(b => 
+                    b.toString(16).padStart(2, '0')).join(' ');
+                this.screenCtx.fillText(`Hex: ${hexData}`, 10, 70);
+                
+                // 데이터 시각화 (파형)
+                if (data.length > 0) {
+                    this.screenCtx.strokeStyle = '#0f0';
+                    this.screenCtx.lineWidth = 1;
+                    this.screenCtx.beginPath();
+                    
+                    const startY = height - 50;
+                    const step = Math.max(1, Math.floor(data.length / width));
+                    
+                    for (let x = 0; x < width && x * step < data.length; x++) {
+                        const value = data[x * step];
+                        const y = startY - (value / 255) * 100;
+                        
+                        if (x === 0) {
+                            this.screenCtx.moveTo(x, y);
+                        } else {
+                            this.screenCtx.lineTo(x, y);
+                        }
+                    }
+                    
+                    this.screenCtx.stroke();
+                }
+                
+                // 데이터 유형 분석 결과 표시
+                this.screenCtx.fillStyle = '#ff0';
+                this.screenCtx.font = '12px monospace';
+                if (data.length >= 320 * 240 * 2) {
+                    this.screenCtx.fillText('> 화면 데이터 크기 감지', 10, height - 30);
+                } else if (data.length > 1000) {
+                    this.screenCtx.fillText('> 큰 데이터 블록', 10, height - 30);
+                } else {
+                    this.screenCtx.fillText('> 작은 응답 데이터', 10, height - 30);
+                }
             }
 
             async sendCommand(command) {
