@@ -401,7 +401,7 @@
             constructor() {
                 this.isConnected = false;
                 this.serialPort = null;
-                this.deviceType = 'nanovna';
+                this.deviceType = 'tinysa-ultra';
                 this.zoom = 2;
                 this.isCapturing = false;
                 this.isPaused = false;
@@ -657,7 +657,9 @@
                         productId: 0x5740,
                         baudRate: 115200,
                         width: 320,
-                        height: 240
+                        height: 240,
+                        captureCommand: 'capture',
+                        hasRLE: false
                     },
                     'nanovna-h4': {
                         name: 'NanoVNA-H4',
@@ -665,7 +667,9 @@
                         productId: 0x5740,
                         baudRate: 115200,
                         width: 480,
-                        height: 320
+                        height: 320,
+                        captureCommand: 'capture',
+                        hasRLE: false
                     },
                     'tinysa': {
                         name: 'tinySA',
@@ -673,7 +677,9 @@
                         productId: 0x5740,
                         baudRate: 115200,
                         width: 320,
-                        height: 240
+                        height: 240,
+                        captureCommand: 'capture',
+                        hasRLE: true
                     },
                     'tinysa-ultra': {
                         name: 'tinySA Ultra',
@@ -681,7 +687,9 @@
                         productId: 0x5740,
                         baudRate: 115200,
                         width: 480,
-                        height: 320
+                        height: 320,
+                        captureCommand: 'capture',
+                        hasRLE: true
                     },
                     'tinypfa': {
                         name: 'tinyPFA',
@@ -689,7 +697,9 @@
                         productId: 0x5740,
                         baudRate: 115200,
                         width: 320,
-                        height: 240
+                        height: 240,
+                        captureCommand: 'capture',
+                        hasRLE: false
                     }
                 };
                 return configs[this.deviceType];
@@ -825,24 +835,37 @@
             }
 
             updateConnectionStatus() {
+                const safeUpdate = (elementId, callback) => {
+                    const element = this.elements && this.elements[elementId];
+                    if (element && callback) {
+                        try {
+                            callback(element);
+                        } catch (error) {
+                            console.warn(`상태 업데이트 실패: ${elementId}`, error);
+                        }
+                    }
+                };
+
                 if (this.isConnected) {
-                    this.elements.statusDot.classList.add('connected');
-                    this.elements.connectionStatus.textContent = '연결됨';
-                    this.elements.screenOverlay.style.display = 'none';
-                    this.elements.deviceInfo.style.display = 'block';
-                    this.elements.connectBtn.disabled = true;
-                    this.elements.disconnectBtn.disabled = false;
-                    this.elements.pauseBtn.disabled = false;
-                    this.elements.resumeBtn.disabled = false;
+                    safeUpdate('statusDot', (el) => el.classList.add('connected'));
+                    safeUpdate('connectionStatus', (el) => el.textContent = this.simulationMode ? '시뮬레이션 연결' : '실제 장비 연결');
+                    safeUpdate('screenOverlay', (el) => el.style.display = 'none');
+                    safeUpdate('deviceInfo', (el) => el.style.display = 'block');
+                    safeUpdate('connectBtn', (el) => el.disabled = true);
+                    safeUpdate('disconnectBtn', (el) => el.disabled = false);
+                    safeUpdate('pauseBtn', (el) => el.disabled = false);
+                    safeUpdate('resumeBtn', (el) => el.disabled = false);
+                    
+                    this.logToTerminal(`📊 연결 상태: ${this.simulationMode ? '시뮬레이션' : '실제 장비'}`);
                 } else {
-                    this.elements.statusDot.classList.remove('connected');
-                    this.elements.connectionStatus.textContent = '연결 안됨';
-                    this.elements.screenOverlay.style.display = 'flex';
-                    this.elements.deviceInfo.style.display = 'none';
-                    this.elements.connectBtn.disabled = false;
-                    this.elements.disconnectBtn.disabled = true;
-                    this.elements.pauseBtn.disabled = true;
-                    this.elements.resumeBtn.disabled = true;
+                    safeUpdate('statusDot', (el) => el.classList.remove('connected'));
+                    safeUpdate('connectionStatus', (el) => el.textContent = '연결 안됨');
+                    safeUpdate('screenOverlay', (el) => el.style.display = 'flex');
+                    safeUpdate('deviceInfo', (el) => el.style.display = 'none');
+                    safeUpdate('connectBtn', (el) => el.disabled = false);
+                    safeUpdate('disconnectBtn', (el) => el.disabled = true);
+                    safeUpdate('pauseBtn', (el) => el.disabled = true);
+                    safeUpdate('resumeBtn', (el) => el.disabled = true);
                 }
             }
 
@@ -1235,14 +1258,18 @@
 
             pauseCapture() {
                 this.isPaused = true;
-                this.elements.pauseBtn.disabled = true;
-                this.elements.resumeBtn.disabled = false;
+                this.logToTerminal('⏸️  화면 캡처 일시정지');
+                
+                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = true;
+                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = false;
             }
 
             resumeCapture() {
                 this.isPaused = false;
-                this.elements.pauseBtn.disabled = false;
-                this.elements.resumeBtn.disabled = true;
+                this.logToTerminal('▶️  화면 캡처 재개');
+                
+                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = false;
+                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = true;
             }
 
             zoomIn() {
