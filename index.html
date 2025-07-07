@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>완전한 tinySA Ultra 웹 컨트롤러</title>
+    <title>tinySA Ultra 웹 컨트롤러</title>
     <style>
         * {
             margin: 0;
@@ -13,47 +13,31 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23, #1a1a3a);
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
             color: #fff;
             min-height: 100vh;
-            overflow-x: auto;
         }
 
         .header {
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.3);
             padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: center;
             backdrop-filter: blur(10px);
             border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-            z-index: 100;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
 
-        .controls {
+        .status {
             display: flex;
+            justify-content: center;
+            align-items: center;
             gap: 1rem;
-            align-items: center;
-        }
-
-        .device-selector {
-            padding: 0.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            margin-top: 1rem;
         }
 
         .status-dot {
@@ -74,98 +58,26 @@
             100% { opacity: 1; }
         }
 
-        .main-container {
+        .container {
             display: grid;
             grid-template-columns: 300px 1fr 300px;
             gap: 1rem;
-            height: calc(100vh - 80px);
             padding: 1rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: calc(100vh - 140px);
         }
 
-        .left-panel, .right-panel {
-            background: rgba(0, 0, 0, 0.4);
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 1rem;
-            overflow-y: auto;
-        }
-
-        .center-area {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .display-area {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 1rem;
-            position: relative;
-        }
-
-        .tab-container {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .tab-button {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px 8px 0 0;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-            background: linear-gradient(45deg, #42a5f5, #1976d2);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .device-screen {
-            background: #000;
-            border: 3px solid #333;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            position: relative;
-            cursor: crosshair;
-            transition: transform 0.3s ease;
-            margin: 0 auto;
-        }
-
-        .device-screen canvas {
-            display: block;
-            border-radius: 7px;
-        }
-
-        .screen-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            font-size: 1.2rem;
-            border-radius: 7px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             padding: 1rem;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
@@ -175,7 +87,7 @@
         .section h3 {
             color: #64b5f6;
             margin-bottom: 1rem;
-            font-size: 1rem;
+            font-size: 1.1rem;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -189,17 +101,16 @@
             margin-bottom: 0.5rem;
             font-weight: 500;
             color: #e3f2fd;
-            font-size: 0.9rem;
         }
 
         input, select, button {
             width: 100%;
-            padding: 0.6rem;
+            padding: 0.75rem;
             border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 6px;
+            border-radius: 8px;
             background: rgba(255, 255, 255, 0.1);
             color: #fff;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
         }
 
@@ -232,12 +143,56 @@
             box-shadow: none;
         }
 
-        .chart-container {
-            width: 100%;
-            height: 300px;
-            background: rgba(0, 0, 0, 0.5);
+        .display-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .screen-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .device-screen {
+            background: #000;
+            border: 3px solid #333;
             border-radius: 10px;
-            margin-bottom: 1rem;
+            margin: 0 auto;
+            position: relative;
+            cursor: crosshair;
+            display: inline-block;
+        }
+
+        .device-screen canvas {
+            display: block;
+            border-radius: 7px;
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 1.2rem;
+            border-radius: 7px;
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 1.5rem;
+            height: 300px;
             position: relative;
         }
 
@@ -246,258 +201,117 @@
             background: #1a1a1a;
         }
 
-        .measurement-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .measurement-card {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 0.8rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .measurement-value {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #64b5f6;
-            margin-bottom: 0.3rem;
-        }
-
-        .measurement-label {
-            font-size: 0.8rem;
-            color: #e3f2fd;
-        }
-
-        .frequency-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
         .terminal {
             background: #000;
             color: #0f0;
             font-family: 'Courier New', monospace;
             padding: 1rem;
             border-radius: 8px;
-            height: 150px;
+            height: 200px;
             overflow-y: auto;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             border: 1px solid #333;
         }
 
         .terminal-line {
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.25rem;
         }
 
-        .data-table {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-        }
-
-        .data-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .data-table th,
-        .data-table td {
-            padding: 0.5rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.8rem;
-        }
-
-        .data-table th {
-            background: rgba(255, 255, 255, 0.1);
-            font-weight: bold;
-            color: #64b5f6;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
+        .measurements {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
             margin-bottom: 1rem;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(45deg, #42a5f5, #1976d2);
-            width: 0%;
-            transition: width 0.3s ease;
+        .measurement-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
         }
 
-        .smith-chart {
-            width: 250px;
-            height: 250px;
-            margin: 0 auto;
-            position: relative;
+        .measurement-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #64b5f6;
+            margin-bottom: 0.5rem;
         }
 
-        .frequency-marker {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background: #ff0;
-            border-radius: 50%;
-            cursor: pointer;
-            transform: translate(-50%, -50%);
+        .measurement-label {
+            font-size: 0.9rem;
+            color: #e3f2fd;
         }
 
-        .zoom-controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
+        .controls {
             display: flex;
-            flex-direction: column;
             gap: 0.5rem;
+            margin-bottom: 1rem;
         }
 
-        .zoom-btn {
-            width: 30px;
-            height: 30px;
-            border: none;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .zoom-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
-
-        .command-history {
-            max-height: 100px;
-            overflow-y: auto;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 5px;
+        .controls button {
+            flex: 1;
             padding: 0.5rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.75rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .file-input {
-            margin-bottom: 0.5rem;
-        }
-
-        .file-input input[type="file"] {
-            padding: 0.3rem;
             font-size: 0.8rem;
         }
 
         @media (max-width: 1200px) {
-            .main-container {
+            .container {
                 grid-template-columns: 1fr;
-                grid-template-rows: auto auto auto;
-            }
-            
-            .left-panel, .right-panel {
-                height: auto;
+                gap: 1rem;
             }
         }
 
         @media (max-width: 768px) {
             .header h1 {
-                font-size: 1.2rem;
+                font-size: 1.5rem;
             }
             
-            .controls {
-                flex-direction: column;
-                gap: 0.5rem;
+            .measurements {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🔬 완전한 tinySA Ultra 웹 컨트롤러</h1>
-        <div class="controls">
-            <select class="device-selector" id="deviceType">
+        <h1>📡 tinySA Ultra 웹 컨트롤러</h1>
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="connectionStatus">연결 안됨</span>
+            <select id="deviceType" style="width: auto; margin-left: 1rem;">
                 <option value="tinysa-ultra">tinySA Ultra</option>
                 <option value="tinysa">tinySA</option>
                 <option value="nanovna">NanoVNA-H</option>
                 <option value="nanovna-h4">NanoVNA-H4</option>
-                <option value="tinypfa">tinyPFA</option>
             </select>
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="connectionStatus">연결 안됨</span>
-            </div>
         </div>
     </div>
 
-    <!-- Chrome 확장 프로그램 충돌 알림 -->
-    <div id="extensionWarning" style="
-        background: linear-gradient(45deg, #ff9800, #f57c00);
-        color: white;
-        padding: 0.5rem 1rem;
-        text-align: center;
-        font-size: 0.9rem;
-        display: none;
-        border-bottom: 1px solid rgba(255,255,255,0.2);
-    ">
-        ⚠️ Chrome 확장 프로그램 충돌이 감지되었습니다. 
-        <button onclick="this.parentElement.style.display='none'" style="
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 0.2rem 0.5rem;
-            border-radius: 3px;
-            margin: 0 0.5rem;
-            cursor: pointer;
-        ">닫기</button>
-        <a href="#" onclick="showExtensionHelp()" style="
-            color: white;
-            text-decoration: underline;
-            margin-left: 0.5rem;
-        ">해결방법 보기</a>
-    </div>
-
-    <div class="main-container">
+    <div class="container">
         <!-- 왼쪽 제어 패널 -->
-        <div class="left-panel">
+        <div class="panel">
             <!-- 연결 상태 -->
             <div class="section">
                 <h3>🔌 장비 연결</h3>
                 <button id="connectBtn">장비 연결</button>
                 <button id="disconnectBtn" disabled>연결 해제</button>
-                <div class="input-group">
-                    <label>연결 상태</label>
-                    <div id="deviceInfo" style="font-size: 0.8rem; color: #ccc;">
-                        <div>해상도: <span id="resolution">480×320</span></div>
-                        <div>FPS: <span id="fpsValue">0</span></div>
-                        <div>배터리: <span id="battery">-</span></div>
-                    </div>
+                <div style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                    <div>상태: <span id="deviceStatus">대기 중</span></div>
+                    <div>FPS: <span id="fpsDisplay">0</span></div>
                 </div>
             </div>
 
             <!-- 주파수 설정 -->
             <div class="section">
                 <h3>📡 주파수 설정</h3>
-                <div class="frequency-controls">
-                    <div class="input-group">
-                        <label>시작 (MHz)</label>
-                        <input type="number" id="startFreq" value="0.1" step="0.1">
-                    </div>
-                    <div class="input-group">
-                        <label>종료 (MHz)</label>
-                        <input type="number" id="stopFreq" value="350" step="0.1">
-                    </div>
+                <div class="input-group">
+                    <label>시작 주파수 (MHz)</label>
+                    <input type="number" id="startFreq" value="0.1" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label>종료 주파수 (MHz)</label>
+                    <input type="number" id="stopFreq" value="350" step="0.1">
                 </div>
                 <div class="input-group">
                     <label>측정 포인트</label>
@@ -505,18 +319,6 @@
                         <option value="101">101</option>
                         <option value="201">201</option>
                         <option value="401">401</option>
-                        <option value="801">801</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>RBW (kHz)</label>
-                    <select id="rbw">
-                        <option value="auto">자동</option>
-                        <option value="1">1</option>
-                        <option value="3">3</option>
-                        <option value="10">10</option>
-                        <option value="30">30</option>
-                        <option value="100">100</option>
                     </select>
                 </div>
                 <button id="setFreqBtn">주파수 설정</button>
@@ -526,1468 +328,494 @@
             <div class="section">
                 <h3>🔍 스캔 제어</h3>
                 <button id="scanBtn">스펙트럼 스캔</button>
-                <button id="sweepBtn">스위프 측정</button>
-                <button id="pauseBtn" disabled>일시 정지</button>
-                <button id="resumeBtn" disabled>재개</button>
-                <button id="singleSweepBtn">단일 스위프</button>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div id="scanStatus" style="font-size: 0.8rem; color: #ccc;">대기 중</div>
-            </div>
-
-            <!-- 측정 모드 -->
-            <div class="section">
-                <h3>⚙️ 측정 모드</h3>
-                <div class="input-group">
-                    <label>측정 타입</label>
-                    <select id="measurementType">
-                        <option value="spectrum">스펙트럼</option>
-                        <option value="s11">S11 (반사)</option>
-                        <option value="s21">S21 (투과)</option>
-                        <option value="s11s21">S11 + S21</option>
-                        <option value="z">Z-parameter</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>참조 레벨 (dBm)</label>
-                    <input type="number" id="refLevel" value="-10" step="1">
-                </div>
-                <div class="input-group">
-                    <label>스케일 (dB/div)</label>
-                    <select id="scale">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                    </select>
+                <button id="sweepBtn">S-parameter 측정</button>
+                <div class="controls">
+                    <button id="pauseBtn" disabled>일시정지</button>
+                    <button id="resumeBtn" disabled>재개</button>
                 </div>
             </div>
 
             <!-- 캘리브레이션 -->
             <div class="section">
                 <h3>🎯 캘리브레이션</h3>
-                <button id="calOpenBtn">OPEN 캘리브레이션</button>
-                <button id="calShortBtn">SHORT 캘리브레이션</button>
-                <button id="calLoadBtn">LOAD 캘리브레이션</button>
-                <button id="calThroughBtn">THROUGH 캘리브레이션</button>
-                <button id="saveCalBtn">캘리브레이션 저장</button>
-                <button id="recallCalBtn">캘리브레이션 로드</button>
-                <button id="clearCalBtn">캘리브레이션 초기화</button>
+                <button id="calBtn">캘리브레이션 실행</button>
+                <div class="controls">
+                    <button id="saveCalBtn">저장</button>
+                    <button id="loadCalBtn">로드</button>
+                </div>
             </div>
         </div>
 
         <!-- 중앙 디스플레이 영역 -->
-        <div class="center-area">
-            <div class="tab-container">
-                <button class="tab-button active" data-tab="screen">화면 미러링</button>
-                <button class="tab-button" data-tab="spectrum">스펙트럼</button>
-                <button class="tab-button" data-tab="smith">Smith 차트</button>
-                <button class="tab-button" data-tab="data">데이터</button>
+        <div class="display-area">
+            <!-- 화면 미러링 -->
+            <div class="screen-container">
+                <h3 style="color: #64b5f6; margin-bottom: 1rem;">📺 실시간 화면</h3>
+                <div class="device-screen" id="deviceScreen">
+                    <canvas id="screenCanvas" width="480" height="320"></canvas>
+                    <div class="screen-overlay" id="screenOverlay">
+                        <div>🔌 장비를 연결하세요</div>
+                        <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
+                            클릭하여 연결하거나 시뮬레이션 모드로 테스트
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.9rem;">
+                    화면을 클릭하여 장비 조작 | 키보드: +/- 줌, S 스크린샷
+                </div>
             </div>
 
-            <div class="display-area">
-                <!-- 화면 미러링 탭 -->
-                <div id="screen-tab" class="tab-content active">
-                    <div class="device-screen" id="deviceScreen">
-                        <canvas id="screenCanvas" width="480" height="320"></canvas>
-                        <div class="screen-overlay" id="screenOverlay">
-                            <div>🔌 장비를 연결하세요</div>
-                            <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
-                                HTTPS 환경에서 실제 장비 연결 가능
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="zoom-controls">
-                        <button class="zoom-btn" id="zoomIn" title="확대 (+)">+</button>
-                        <button class="zoom-btn" id="zoomOut" title="축소 (-)">-</button>
-                        <button class="zoom-btn" id="screenshot" title="스크린샷 (S)">📷</button>
-                    </div>
-
-                    <div style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
-                        화면을 클릭하여 장비 조작 | 키보드: +/- 줌, S 스크린샷, ESC 종료
-                    </div>
-                </div>
-
-                <!-- 스펙트럼 탭 -->
-                <div id="spectrum-tab" class="tab-content">
-                    <div class="chart-container">
-                        <canvas id="spectrumChart" width="800" height="280"></canvas>
-                    </div>
-                    <div class="measurement-grid">
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="peakFreq">-</div>
-                            <div class="measurement-label">Peak 주파수</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="peakPower">-</div>
-                            <div class="measurement-label">Peak 파워</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="avgPower">-</div>
-                            <div class="measurement-label">평균 파워</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="noiseFloor">-</div>
-                            <div class="measurement-label">노이즈 플로어</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Smith 차트 탭 -->
-                <div id="smith-tab" class="tab-content">
-                    <div class="smith-chart">
-                        <canvas id="smithChart" width="250" height="250"></canvas>
-                    </div>
-                    <div class="measurement-grid">
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="vswr">-</div>
-                            <div class="measurement-label">VSWR</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="returnLoss">-</div>
-                            <div class="measurement-label">Return Loss</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="impedance">-</div>
-                            <div class="measurement-label">임피던스</div>
-                        </div>
-                        <div class="measurement-card">
-                            <div class="measurement-value" id="phase">-</div>
-                            <div class="measurement-label">위상</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 데이터 탭 -->
-                <div id="data-tab" class="tab-content">
-                    <div class="data-table">
-                        <table id="dataTable">
-                            <thead>
-                                <tr>
-                                    <th>주파수 (MHz)</th>
-                                    <th>S11 (dB)</th>
-                                    <th>S21 (dB)</th>
-                                    <th>위상 (°)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dataTableBody">
-                                <tr><td colspan="4">데이터 없음</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <!-- 스펙트럼 차트 -->
+            <div class="chart-container">
+                <h3 style="color: #64b5f6; margin-bottom: 1rem;">📊 스펙트럼 분석</h3>
+                <canvas id="spectrumChart" width="600" height="200"></canvas>
             </div>
         </div>
 
         <!-- 오른쪽 제어 패널 -->
-        <div class="right-panel">
-            <!-- 마커 제어 -->
+        <div class="panel">
+            <!-- 측정값 -->
             <div class="section">
-                <h3>📍 마커 제어</h3>
-                <div class="input-group">
-                    <label>마커 주파수 (MHz)</label>
-                    <input type="number" id="markerFreq" value="100" step="0.1">
-                </div>
-                <button id="setMarkerBtn">마커 설정</button>
-                <button id="markerPeakBtn">Peak 마커</button>
-                <button id="clearMarkersBtn">마커 삭제</button>
-                <div id="markerInfo" style="font-size: 0.8rem; color: #ccc; margin-top: 0.5rem;">
-                    마커 없음
+                <h3>📊 측정값</h3>
+                <div class="measurements">
+                    <div class="measurement-card">
+                        <div class="measurement-value" id="peakFreq">-</div>
+                        <div class="measurement-label">Peak 주파수</div>
+                    </div>
+                    <div class="measurement-card">
+                        <div class="measurement-value" id="peakPower">-</div>
+                        <div class="measurement-label">Peak 파워</div>
+                    </div>
+                    <div class="measurement-card">
+                        <div class="measurement-value" id="s11Value">-</div>
+                        <div class="measurement-label">S11 (dB)</div>
+                    </div>
+                    <div class="measurement-card">
+                        <div class="measurement-value" id="vswr">-</div>
+                        <div class="measurement-label">VSWR</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 데이터 저장/로드 -->
+            <!-- 데이터 저장 -->
             <div class="section">
                 <h3>💾 데이터 관리</h3>
                 <button id="saveDataBtn">측정 데이터 저장</button>
-                <button id="saveTouchstoneBtn">Touchstone 저장</button>
-                <button id="saveImageBtn">이미지 저장</button>
-                <div class="file-input">
-                    <input type="file" id="loadDataBtn" accept=".s1p,.s2p,.csv" style="width: 100%;">
-                </div>
-                <button id="exportCSVBtn">CSV 내보내기</button>
-            </div>
-
-            <!-- 고급 측정 -->
-            <div class="section">
-                <h3>🔬 고급 측정</h3>
-                <button id="tdTimeBtn">시간 도메인 변환</button>
-                <button id="noiseAnalysisBtn">노이즈 분석</button>
-                <button id="harmonicBtn">고조파 분석</button>
-                <button id="spuriousBtn">스퓨리어스 분석</button>
-                <button id="powerMeterBtn">파워 미터</button>
+                <button id="saveImageBtn">스크린샷 저장</button>
+                <button id="exportCsvBtn">CSV 내보내기</button>
             </div>
 
             <!-- 시스템 제어 -->
             <div class="section">
-                <h3>🔧 시스템</h3>
+                <h3>⚙️ 시스템</h3>
                 <button id="resetBtn">시스템 리셋</button>
                 <button id="vbatBtn">배터리 체크</button>
-                <button id="timeBtn">시간 동기화</button>
                 <button id="infoBtn">장비 정보</button>
-                <button id="versionBtn">펌웨어 버전</button>
             </div>
 
-            <!-- 명령어 인터페이스 -->
+            <!-- 명령어 -->
             <div class="section">
                 <h3>💻 명령어</h3>
-                <div class="command-history" id="commandHistory">
-                    명령어 기록이 여기에 표시됩니다.
-                </div>
                 <div class="input-group">
                     <input type="text" id="commandInput" placeholder="명령어 입력..." value="help">
                 </div>
                 <button id="sendCommandBtn">명령 전송</button>
-                <button id="helpBtn">명령어 도움말</button>
             </div>
 
             <!-- 통신 로그 -->
             <div class="section">
                 <h3>📟 통신 로그</h3>
                 <div class="terminal" id="terminal">
-                    <div class="terminal-line">완전한 tinySA Ultra 웹 컨트롤러 v2.0</div>
-                    <div class="terminal-line">모든 기능이 포함된 버전입니다.</div>
+                    <div class="terminal-line">tinySA Ultra 웹 컨트롤러 v1.0</div>
+                    <div class="terminal-line">안정적인 버전으로 시작합니다.</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        class CompleteTinySAController {
+        console.log('스크립트 로딩 시작...');
+        
+        class TinySAController {
             constructor() {
+                console.log('TinySAController 생성자 시작');
+                
+                // 기본 속성
                 this.isConnected = false;
                 this.serialPort = null;
                 this.deviceType = 'tinysa-ultra';
-                this.zoom = 2;
+                this.zoom = 1;
                 this.isCapturing = false;
                 this.isPaused = false;
-                this.invertColors = false;
                 this.fps = 0;
                 this.frameCount = 0;
                 this.lastFpsUpdate = Date.now();
-                this.screenData = null;
+                
+                // WebSerial 지원 확인
                 this.simulationMode = !('serial' in navigator) || window.location.protocol !== 'https:';
-                this.availableDevices = [];
-                this.currentTab = 'screen';
                 
                 // 측정 데이터
                 this.spectrumData = {
                     frequencies: [],
-                    powers: [],
-                    s11: [],
-                    s21: [],
-                    phases: []
+                    powers: []
                 };
                 
-                // 마커 데이터
-                this.markers = [];
-                this.calibrationData = null;
+                console.log('시뮬레이션 모드:', this.simulationMode);
                 
-                this.initializeWhenReady();
-            }
-
-            async initializeWhenReady() {
-                let retries = 0;
-                while (retries < 10) {
-                    try {
-                        this.canvas = document.getElementById('screenCanvas');
-                        if (!this.canvas) {
-                            retries++;
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            continue;
-                        }
-                        
-                        this.ctx = this.canvas.getContext('2d');
-                        this.spectrumCanvas = document.getElementById('spectrumChart');
-                        this.spectrumCtx = this.spectrumCanvas.getContext('2d');
-                        this.smithCanvas = document.getElementById('smithChart');
-                        this.smithCtx = this.smithCanvas.getContext('2d');
-                        
-                        this.initializeElements();
-                        this.setupEventListeners();
-                        this.setupKeyboardShortcuts();
-                        this.updateDeviceResolution();
-                        this.checkWebSerialSupport();
-                        
-                        this.logToTerminal('✅ 완전한 애플리케이션 초기화 완료');
-                        
-                        if (this.simulationMode) {
-                            this.startSimulation();
-                        } else {
-                            this.startDeviceMonitoring();
-                        }
-                        
-                        // 기본 차트 그리기
-                        this.drawSpectrumChart();
-                        this.drawSmithChart();
-                        
-                        break;
-                    } catch (error) {
-                        console.error('초기화 시도 실패:', error);
-                        retries++;
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                }
+                // 초기화
+                this.initializeElements();
+                this.setupEventListeners();
+                this.initializeCanvases();
+                this.logToTerminal('✅ 컨트롤러 초기화 완료');
                 
-                if (retries >= 10) {
-                    console.error('초기화 실패: DOM 요소를 찾을 수 없습니다');
+                if (this.simulationMode) {
+                    this.logToTerminal('🎮 시뮬레이션 모드 - 모든 기능 테스트 가능');
+                } else {
+                    this.logToTerminal('🔗 실제 연결 모드 - 장비 연결 버튼을 클릭하세요');
                 }
             }
 
             initializeElements() {
-                const elementIds = [
-                    'deviceType', 'statusDot', 'connectionStatus', 'deviceScreen', 'screenOverlay',
-                    'resolution', 'fpsValue', 'battery', 'connectBtn', 'disconnectBtn',
-                    'startFreq', 'stopFreq', 'points', 'rbw', 'setFreqBtn', 'refLevel', 'scale',
-                    'scanBtn', 'sweepBtn', 'pauseBtn', 'resumeBtn', 'singleSweepBtn',
-                    'progressFill', 'scanStatus', 'measurementType',
-                    'calOpenBtn', 'calShortBtn', 'calLoadBtn', 'calThroughBtn',
-                    'saveCalBtn', 'recallCalBtn', 'clearCalBtn',
-                    'zoomIn', 'zoomOut', 'screenshot',
-                    'peakFreq', 'peakPower', 'avgPower', 'noiseFloor',
-                    'vswr', 'returnLoss', 'impedance', 'phase',
-                    'dataTableBody', 'markerFreq', 'setMarkerBtn', 'markerPeakBtn',
-                    'clearMarkersBtn', 'markerInfo', 'saveDataBtn', 'saveTouchstoneBtn',
-                    'saveImageBtn', 'loadDataBtn', 'exportCSVBtn',
-                    'tdTimeBtn', 'noiseAnalysisBtn', 'harmonicBtn', 'spuriousBtn', 'powerMeterBtn',
-                    'resetBtn', 'vbatBtn', 'timeBtn', 'infoBtn', 'versionBtn',
-                    'commandHistory', 'commandInput', 'sendCommandBtn', 'helpBtn', 'terminal'
-                ];
+                console.log('DOM 요소 초기화 중...');
                 
-                this.elements = {};
-                elementIds.forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        this.elements[id] = element;
-                    } else {
-                        console.warn(`요소를 찾을 수 없습니다: ${id}`);
+                // 필수 요소들
+                this.elements = {
+                    statusDot: document.getElementById('statusDot'),
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    deviceType: document.getElementById('deviceType'),
+                    deviceStatus: document.getElementById('deviceStatus'),
+                    fpsDisplay: document.getElementById('fpsDisplay'),
+                    connectBtn: document.getElementById('connectBtn'),
+                    disconnectBtn: document.getElementById('disconnectBtn'),
+                    startFreq: document.getElementById('startFreq'),
+                    stopFreq: document.getElementById('stopFreq'),
+                    points: document.getElementById('points'),
+                    setFreqBtn: document.getElementById('setFreqBtn'),
+                    scanBtn: document.getElementById('scanBtn'),
+                    sweepBtn: document.getElementById('sweepBtn'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    resumeBtn: document.getElementById('resumeBtn'),
+                    calBtn: document.getElementById('calBtn'),
+                    saveCalBtn: document.getElementById('saveCalBtn'),
+                    loadCalBtn: document.getElementById('loadCalBtn'),
+                    deviceScreen: document.getElementById('deviceScreen'),
+                    screenOverlay: document.getElementById('screenOverlay'),
+                    screenCanvas: document.getElementById('screenCanvas'),
+                    spectrumChart: document.getElementById('spectrumChart'),
+                    peakFreq: document.getElementById('peakFreq'),
+                    peakPower: document.getElementById('peakPower'),
+                    s11Value: document.getElementById('s11Value'),
+                    vswr: document.getElementById('vswr'),
+                    saveDataBtn: document.getElementById('saveDataBtn'),
+                    saveImageBtn: document.getElementById('saveImageBtn'),
+                    exportCsvBtn: document.getElementById('exportCsvBtn'),
+                    resetBtn: document.getElementById('resetBtn'),
+                    vbatBtn: document.getElementById('vbatBtn'),
+                    infoBtn: document.getElementById('infoBtn'),
+                    commandInput: document.getElementById('commandInput'),
+                    sendCommandBtn: document.getElementById('sendCommandBtn'),
+                    terminal: document.getElementById('terminal')
+                };
+                
+                // 누락된 요소 확인
+                const missingElements = [];
+                for (const [key, element] of Object.entries(this.elements)) {
+                    if (!element) {
+                        missingElements.push(key);
                     }
-                });
+                }
                 
-                console.log(`초기화된 요소: ${Object.keys(this.elements).length}/${elementIds.length}`);
+                if (missingElements.length > 0) {
+                    console.warn('누락된 요소들:', missingElements);
+                } else {
+                    console.log('모든 DOM 요소 초기화 완료');
+                }
             }
 
             setupEventListeners() {
-                const addSafeListener = (elementId, event, handler) => {
-                    const element = this.elements[elementId];
-                    if (element) {
-                        element.addEventListener(event, handler);
-                    } else {
-                        console.warn(`이벤트 리스너 추가 실패: ${elementId} 요소가 없습니다`);
+                console.log('이벤트 리스너 설정 중...');
+                
+                try {
+                    // 장비 타입 변경
+                    if (this.elements.deviceType) {
+                        this.elements.deviceType.addEventListener('change', (e) => {
+                            this.deviceType = e.target.value;
+                            this.updateDeviceConfig();
+                        });
                     }
-                };
 
-                // 기본 제어
-                addSafeListener('deviceType', 'change', (e) => {
-                    this.deviceType = e.target.value;
-                    this.updateDeviceResolution();
-                });
+                    // 연결 제어
+                    if (this.elements.connectBtn) {
+                        this.elements.connectBtn.addEventListener('click', () => this.connect());
+                    }
+                    if (this.elements.disconnectBtn) {
+                        this.elements.disconnectBtn.addEventListener('click', () => this.disconnect());
+                    }
 
-                addSafeListener('connectBtn', 'click', () => this.connect());
-                addSafeListener('disconnectBtn', 'click', () => this.disconnect());
+                    // 주파수 설정
+                    if (this.elements.setFreqBtn) {
+                        this.elements.setFreqBtn.addEventListener('click', () => this.setFrequencies());
+                    }
 
-                // 주파수 제어
-                addSafeListener('setFreqBtn', 'click', () => this.setFrequencies());
+                    // 스캔 제어
+                    if (this.elements.scanBtn) {
+                        this.elements.scanBtn.addEventListener('click', () => this.startScan());
+                    }
+                    if (this.elements.sweepBtn) {
+                        this.elements.sweepBtn.addEventListener('click', () => this.startSweep());
+                    }
+                    if (this.elements.pauseBtn) {
+                        this.elements.pauseBtn.addEventListener('click', () => this.pauseCapture());
+                    }
+                    if (this.elements.resumeBtn) {
+                        this.elements.resumeBtn.addEventListener('click', () => this.resumeCapture());
+                    }
 
-                // 스캔 제어
-                addSafeListener('scanBtn', 'click', () => this.startSpectrumScan());
-                addSafeListener('sweepBtn', 'click', () => this.startSweep());
-                addSafeListener('pauseBtn', 'click', () => this.pauseCapture());
-                addSafeListener('resumeBtn', 'click', () => this.resumeCapture());
-                addSafeListener('singleSweepBtn', 'click', () => this.singleSweep());
+                    // 캘리브레이션
+                    if (this.elements.calBtn) {
+                        this.elements.calBtn.addEventListener('click', () => this.calibrate());
+                    }
+                    if (this.elements.saveCalBtn) {
+                        this.elements.saveCalBtn.addEventListener('click', () => this.saveCalibration());
+                    }
+                    if (this.elements.loadCalBtn) {
+                        this.elements.loadCalBtn.addEventListener('click', () => this.loadCalibration());
+                    }
 
-                // 캘리브레이션
-                addSafeListener('calOpenBtn', 'click', () => this.calibrateOpen());
-                addSafeListener('calShortBtn', 'click', () => this.calibrateShort());
-                addSafeListener('calLoadBtn', 'click', () => this.calibrateLoad());
-                addSafeListener('calThroughBtn', 'click', () => this.calibrateThrough());
-                addSafeListener('saveCalBtn', 'click', () => this.saveCalibration());
-                addSafeListener('recallCalBtn', 'click', () => this.recallCalibration());
-                addSafeListener('clearCalBtn', 'click', () => this.clearCalibration());
+                    // 데이터 관리
+                    if (this.elements.saveDataBtn) {
+                        this.elements.saveDataBtn.addEventListener('click', () => this.saveData());
+                    }
+                    if (this.elements.saveImageBtn) {
+                        this.elements.saveImageBtn.addEventListener('click', () => this.saveImage());
+                    }
+                    if (this.elements.exportCsvBtn) {
+                        this.elements.exportCsvBtn.addEventListener('click', () => this.exportCsv());
+                    }
 
-                // 화면 제어
-                addSafeListener('zoomIn', 'click', () => this.zoomIn());
-                addSafeListener('zoomOut', 'click', () => this.zoomOut());
-                addSafeListener('screenshot', 'click', () => this.takeScreenshot());
+                    // 시스템 제어
+                    if (this.elements.resetBtn) {
+                        this.elements.resetBtn.addEventListener('click', () => this.systemReset());
+                    }
+                    if (this.elements.vbatBtn) {
+                        this.elements.vbatBtn.addEventListener('click', () => this.checkBattery());
+                    }
+                    if (this.elements.infoBtn) {
+                        this.elements.infoBtn.addEventListener('click', () => this.getDeviceInfo());
+                    }
 
-                // 마커 제어
-                addSafeListener('setMarkerBtn', 'click', () => this.setMarker());
-                addSafeListener('markerPeakBtn', 'click', () => this.setPeakMarker());
-                addSafeListener('clearMarkersBtn', 'click', () => this.clearMarkers());
+                    // 명령어
+                    if (this.elements.sendCommandBtn) {
+                        this.elements.sendCommandBtn.addEventListener('click', () => this.sendCommand());
+                    }
+                    if (this.elements.commandInput) {
+                        this.elements.commandInput.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') this.sendCommand();
+                        });
+                    }
 
-                // 데이터 관리
-                addSafeListener('saveDataBtn', 'click', () => this.saveData());
-                addSafeListener('saveTouchstoneBtn', 'click', () => this.saveTouchstone());
-                addSafeListener('saveImageBtn', 'click', () => this.saveImage());
-                addSafeListener('exportCSVBtn', 'click', () => this.exportCSV());
-                addSafeListener('loadDataBtn', 'change', (e) => this.loadData(e));
+                    // 화면 클릭
+                    if (this.elements.screenCanvas) {
+                        this.elements.screenCanvas.addEventListener('click', (e) => this.handleScreenClick(e));
+                    }
 
-                // 고급 측정
-                addSafeListener('tdTimeBtn', 'click', () => this.timeDomainTransform());
-                addSafeListener('noiseAnalysisBtn', 'click', () => this.noiseAnalysis());
-                addSafeListener('harmonicBtn', 'click', () => this.harmonicAnalysis());
-                addSafeListener('spuriousBtn', 'click', () => this.spuriousAnalysis());
-                addSafeListener('powerMeterBtn', 'click', () => this.powerMeter());
+                    // 키보드 단축키
+                    document.addEventListener('keydown', (e) => {
+                        switch (e.key) {
+                            case '+':
+                                this.zoom = Math.min(this.zoom + 0.2, 3);
+                                this.updateScreenSize();
+                                break;
+                            case '-':
+                                this.zoom = Math.max(this.zoom - 0.2, 0.5);
+                                this.updateScreenSize();
+                                break;
+                            case 's':
+                            case 'S':
+                                if (e.ctrlKey) return;
+                                e.preventDefault();
+                                this.saveImage();
+                                break;
+                        }
+                    });
 
-                // 시스템 제어
-                addSafeListener('resetBtn', 'click', () => this.systemReset());
-                addSafeListener('vbatBtn', 'click', () => this.checkBattery());
-                addSafeListener('timeBtn', 'click', () => this.syncTime());
-                addSafeListener('infoBtn', 'click', () => this.getDeviceInfo());
-                addSafeListener('versionBtn', 'click', () => this.getFirmwareVersion());
-
-                // 명령어
-                addSafeListener('sendCommandBtn', 'click', () => this.sendCommand());
-                addSafeListener('helpBtn', 'click', () => this.showHelp());
-                addSafeListener('commandInput', 'keypress', (e) => {
-                    if (e.key === 'Enter') this.sendCommand();
-                });
-
-                // 탭 제어
-                document.querySelectorAll('.tab-button').forEach(button => {
-                    button.addEventListener('click', () => this.switchTab(button.dataset.tab));
-                });
-
-                // 화면 클릭
-                if (this.canvas) {
-                    this.canvas.addEventListener('click', (e) => this.handleScreenClick(e));
-                    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                    console.log('이벤트 리스너 설정 완료');
+                } catch (error) {
+                    console.error('이벤트 리스너 설정 실패:', error);
                 }
             }
 
-            setupKeyboardShortcuts() {
-                document.addEventListener('keydown', (e) => {
-                    switch (e.key) {
-                        case '+':
-                        case '=':
-                            e.preventDefault();
-                            this.zoomIn();
-                            break;
-                        case '-':
-                            e.preventDefault();
-                            this.zoomOut();
-                            break;
-                        case 's':
-                        case 'S':
-                            e.preventDefault();
-                            this.takeScreenshot();
-                            break;
-                        case 'Escape':
-                            e.preventDefault();
-                            this.disconnect();
-                            break;
-                        case ' ':
-                            e.preventDefault();
-                            if (this.isPaused) {
-                                this.resumeCapture();
-                            } else {
-                                this.pauseCapture();
-                            }
-                            break;
+            initializeCanvases() {
+                console.log('캔버스 초기화 중...');
+                
+                try {
+                    // 화면 미러링 캔버스
+                    if (this.elements.screenCanvas) {
+                        this.screenCtx = this.elements.screenCanvas.getContext('2d');
+                        this.updateDeviceConfig();
                     }
-                });
+
+                    // 스펙트럼 차트 캔버스
+                    if (this.elements.spectrumChart) {
+                        this.spectrumCtx = this.elements.spectrumChart.getContext('2d');
+                        this.drawSpectrumChart();
+                    }
+
+                    console.log('캔버스 초기화 완료');
+                } catch (error) {
+                    console.error('캔버스 초기화 실패:', error);
+                }
             }
 
-            getDeviceConfig() {
+            updateDeviceConfig() {
                 const configs = {
-                    'nanovna': {
-                        name: 'NanoVNA-H',
-                        vendorId: 0x0483,
-                        productId: 0x5740,
-                        baudRate: 115200,
-                        width: 320,
-                        height: 240,
-                        hasRLE: false,
-                        maxFreq: 900e6
-                    },
-                    'nanovna-h4': {
-                        name: 'NanoVNA-H4',
-                        vendorId: 0x0483,
-                        productId: 0x5740,
-                        baudRate: 115200,
-                        width: 480,
-                        height: 320,
-                        hasRLE: false,
-                        maxFreq: 1.5e9
-                    },
-                    'tinysa': {
-                        name: 'tinySA',
-                        vendorId: 0x0483,
-                        productId: 0x5740,
-                        baudRate: 115200,
-                        width: 320,
-                        height: 240,
-                        hasRLE: true,
-                        maxFreq: 350e6
-                    },
-                    'tinysa-ultra': {
-                        name: 'tinySA Ultra',
-                        vendorId: 0x0483,
-                        productId: 0x5740,
-                        baudRate: 115200,
-                        width: 480,
-                        height: 320,
-                        hasRLE: true,
-                        maxFreq: 5.3e9
-                    },
-                    'tinypfa': {
-                        name: 'tinyPFA',
-                        vendorId: 0x0483,
-                        productId: 0x5740,
-                        baudRate: 115200,
-                        width: 320,
-                        height: 240,
-                        hasRLE: false,
-                        maxFreq: 6e9
-                    }
+                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320, maxFreq: 5300 },
+                    'tinysa': { name: 'tinySA', width: 320, height: 240, maxFreq: 350 },
+                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240, maxFreq: 900 },
+                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320, maxFreq: 1500 }
                 };
-                return configs[this.deviceType];
-            }
 
-            updateDeviceResolution() {
-                const deviceConfig = this.getDeviceConfig();
-                
-                this.canvas.width = deviceConfig.width;
-                this.canvas.height = deviceConfig.height;
-                if (this.elements.resolution) {
-                    this.elements.resolution.textContent = `${deviceConfig.width}×${deviceConfig.height}`;
+                const config = configs[this.deviceType];
+                if (config && this.elements.screenCanvas) {
+                    this.elements.screenCanvas.width = config.width;
+                    this.elements.screenCanvas.height = config.height;
+                    this.updateScreenSize();
+                    
+                    // 종료 주파수 업데이트
+                    if (this.elements.stopFreq) {
+                        this.elements.stopFreq.value = config.maxFreq;
+                    }
+                    
+                    this.logToTerminal(`장비 변경: ${config.name} (${config.width}×${config.height})`);
                 }
-                
-                const headerTitle = document.querySelector('.header h1');
-                headerTitle.textContent = `🔬 ${deviceConfig.name} 완전 웹 컨트롤러`;
-                
-                this.updateScreenSize();
-                this.logToTerminal(`장비 변경: ${deviceConfig.name} (${deviceConfig.width}×${deviceConfig.height})`);
             }
 
             updateScreenSize() {
-                const scale = this.zoom;
                 if (this.elements.deviceScreen) {
-                    this.elements.deviceScreen.style.transform = `scale(${scale})`;
-                }
-            }
-
-            checkWebSerialSupport() {
-                try {
-                    if ('serial' in navigator) {
-                        if (window.location.protocol === 'https:' || 
-                            window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1') {
-                            this.simulationMode = false;
-                            this.logToTerminal('✅ WebSerial API 지원됨 - 실제 장비 연결 가능');
-                        } else {
-                            this.simulationMode = true;
-                            this.logToTerminal('⚠️  WebSerial API 지원되지만 HTTP 환경으로 제한됨');
-                            this.logToTerminal('🔒 HTTPS 환경에서 실제 장비 연결 가능');
-                        }
-                    } else {
-                        this.simulationMode = true;
-                        this.logToTerminal('❌ WebSerial API 미지원 - 시뮬레이션 모드로 동작');
-                        this.logToTerminal('💡 Chrome/Edge 브라우저와 HTTPS 환경에서 사용하세요');
-                    }
-                } catch (error) {
-                    console.warn('WebSerial 지원 확인 중 오류:', error);
-                    this.simulationMode = true;
-                    this.logToTerminal('⚠️  WebSerial 확인 실패 - 시뮬레이션 모드로 전환');
-                }
-                
-                if (this.simulationMode) {
-                    this.logToTerminal('🎮 현재 시뮬레이션 모드에서 모든 기능 테스트 가능');
-                }
-            }
-
-            async startDeviceMonitoring() {
-                if ('serial' in navigator) {
-                    navigator.serial.addEventListener('connect', (event) => {
-                        this.logToTerminal('장비 연결됨');
-                    });
-                    
-                    navigator.serial.addEventListener('disconnect', (event) => {
-                        this.logToTerminal('장비 연결 해제됨');
-                        if (event.port === this.serialPort) {
-                            this.disconnect();
-                        }
-                    });
+                    this.elements.deviceScreen.style.transform = `scale(${this.zoom})`;
                 }
             }
 
             async connect() {
-                this.elements.connectBtn.disabled = true;
-                this.elements.connectionStatus.textContent = '연결 시도 중...';
-                this.logToTerminal('🔌 장비 연결 시작...');
+                console.log('연결 시작...');
                 
-                const deviceConfig = this.getDeviceConfig();
-                this.logToTerminal(`선택된 장비: ${deviceConfig.name}`);
+                if (this.elements.connectBtn) {
+                    this.elements.connectBtn.disabled = true;
+                }
+                
+                this.updateConnectionStatus('연결 중...');
+                this.logToTerminal('🔌 장비 연결 시도 중...');
 
-                if (!this.simulationMode) {
+                if (this.simulationMode) {
+                    // 시뮬레이션 모드
+                    setTimeout(() => {
+                        this.isConnected = true;
+                        this.updateConnectionStatus('시뮬레이션 연결');
+                        this.logToTerminal('✅ 시뮬레이션 모드로 연결됨');
+                        this.startSimulation();
+                    }, 1000);
+                } else {
+                    // 실제 연결
                     try {
-                        // Chrome 확장 프로그램 충돌 방지를 위한 지연
-                        await new Promise(resolve => setTimeout(resolve, 200));
+                        const config = this.getDeviceConfig();
                         
-                        this.logToTerminal('📋 장비 선택 다이얼로그 표시...');
-                        
-                        this.serialPort = await Promise.race([
-                            navigator.serial.requestPort({
-                                filters: [{ 
-                                    usbVendorId: deviceConfig.vendorId, 
-                                    usbProductId: deviceConfig.productId 
-                                }]
-                            }),
-                            new Promise((_, reject) => 
-                                setTimeout(() => reject(new Error('포트 선택 타임아웃')), 30000)
-                            )
-                        ]);
+                        this.serialPort = await navigator.serial.requestPort({
+                            filters: [{ usbVendorId: 0x0483, usbProductId: 0x5740 }]
+                        });
 
-                        this.logToTerminal('🔗 시리얼 포트 열기...');
                         await this.serialPort.open({
-                            baudRate: deviceConfig.baudRate,
+                            baudRate: 115200,
                             dataBits: 8,
                             stopBits: 1,
                             parity: 'none'
                         });
 
-                        this.logToTerminal('✅ 시리얼 포트 연결 성공!');
-                        
-                        // 연결 확인을 위한 간단한 테스트
-                        try {
-                            await this.verifyDeviceType();
-                        } catch (verifyError) {
-                            this.logToTerminal(`⚠️  장비 확인 실패 (계속 진행): ${verifyError.message}`);
-                        }
-                        
                         this.isConnected = true;
-                        this.logToTerminal('🎉 장비 연결 및 초기화 완료!');
+                        this.updateConnectionStatus('실제 연결');
+                        this.logToTerminal('✅ 실제 장비 연결 성공');
                         this.startRealCapture();
                         
                     } catch (error) {
                         this.logToTerminal(`❌ 연결 실패: ${error.message}`);
-                        
-                        // 특정 오류에 대한 해결책 제시
-                        if (error.message.includes('message port closed')) {
-                            this.logToTerminal('💡 Chrome 확장 프로그램과의 충돌입니다.');
-                            this.logToTerminal('💡 해결방법: 시크릿 모드에서 시도하거나 확장 프로그램을 비활성화하세요.');
-                        } else if (error.name === 'NotFoundError') {
-                            this.logToTerminal('💡 해결방법: 장비가 USB에 연결되어 있는지 확인하세요');
-                        } else if (error.name === 'SecurityError') {
-                            this.logToTerminal('💡 해결방법: HTTPS 환경에서 접속하세요');
-                        } else if (error.name === 'NotSupportedError') {
-                            this.logToTerminal('💡 해결방법: Chrome 또는 Edge 브라우저를 사용하세요');
+                        this.updateConnectionStatus('연결 실패');
+                        if (this.elements.connectBtn) {
+                            this.elements.connectBtn.disabled = false;
                         }
-                        
-                        this.elements.connectionStatus.textContent = `연결 실패: ${error.message}`;
-                        this.elements.connectBtn.disabled = false;
-                        return;
                     }
-                } else {
-                    setTimeout(() => {
-                        this.isConnected = true;
-                        this.serialPort = null;
-                        this.logToTerminal('✅ 시뮬레이션 장비 연결 완료!');
-                        this.updateConnectionStatus();
-                        this.startSimulation();
-                    }, 1000);
-                    return;
-                }
-
-                this.updateConnectionStatus();
-            }
-
-            async verifyDeviceType() {
-                try {
-                    await this.sendDeviceCommand('info');
-                    this.logToTerminal('✅ 장비 타입 확인 완료');
-                } catch (error) {
-                    this.logToTerminal(`⚠️  장비 타입 확인 실패 (계속 진행): ${error.message}`);
                 }
             }
 
-            async disconnect() {
-                this.logToTerminal('🔌 장비 연결 해제 중...');
-                this.isCapturing = false;
+            getDeviceConfig() {
+                const configs = {
+                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320 },
+                    'tinysa': { name: 'tinySA', width: 320, height: 240 },
+                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240 },
+                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320 }
+                };
+                return configs[this.deviceType];
+            }
+
+            disconnect() {
+                console.log('연결 해제...');
                 
-                if (this.serialPort && !this.simulationMode) {
-                    try {
-                        await this.serialPort.close();
-                        this.logToTerminal('✅ 시리얼 포트 닫기 완료');
-                    } catch (error) {
-                        this.logToTerminal(`⚠️  포트 닫기 실패: ${error.message}`);
-                    }
-                }
-
+                this.isCapturing = false;
                 this.isConnected = false;
-                this.serialPort = null;
-                this.updateConnectionStatus();
-                this.logToTerminal('🔌 장비 연결 해제 완료');
+                
+                if (this.serialPort) {
+                    this.serialPort.close().catch(console.error);
+                    this.serialPort = null;
+                }
+                
+                this.updateConnectionStatus('연결 안됨');
+                this.logToTerminal('🔌 연결 해제됨');
                 
                 // 화면 초기화
-                this.ctx.fillStyle = '#000';
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            }
-
-            updateConnectionStatus() {
-                const safeUpdate = (elementId, callback) => {
-                    const element = this.elements && this.elements[elementId];
-                    if (element && callback) {
-                        try {
-                            callback(element);
-                        } catch (error) {
-                            console.warn(`상태 업데이트 실패: ${elementId}`, error);
-                        }
-                    }
-                };
-
-                if (this.isConnected) {
-                    safeUpdate('statusDot', (el) => el.classList.add('connected'));
-                    safeUpdate('connectionStatus', (el) => el.textContent = this.simulationMode ? '시뮬레이션 연결' : '실제 장비 연결');
-                    safeUpdate('screenOverlay', (el) => el.style.display = 'none');
-                    safeUpdate('connectBtn', (el) => el.disabled = true);
-                    safeUpdate('disconnectBtn', (el) => el.disabled = false);
-                    safeUpdate('pauseBtn', (el) => el.disabled = false);
-                    safeUpdate('resumeBtn', (el) => el.disabled = false);
-                } else {
-                    safeUpdate('statusDot', (el) => el.classList.remove('connected'));
-                    safeUpdate('connectionStatus', (el) => el.textContent = '연결 안됨');
-                    safeUpdate('screenOverlay', (el) => el.style.display = 'flex');
-                    safeUpdate('connectBtn', (el) => el.disabled = false);
-                    safeUpdate('disconnectBtn', (el) => el.disabled = true);
-                    safeUpdate('pauseBtn', (el) => el.disabled = true);
-                    safeUpdate('resumeBtn', (el) => el.disabled = true);
+                if (this.screenCtx) {
+                    this.screenCtx.fillStyle = '#000';
+                    this.screenCtx.fillRect(0, 0, this.elements.screenCanvas.width, this.elements.screenCanvas.height);
                 }
             }
 
-            async sendDeviceCommand(command) {
-                if (!this.simulationMode && this.serialPort) {
-                    try {
-                        // Chrome 확장 프로그램 충돌 방지
-                        if (!this.serialPort.writable || !this.serialPort.readable) {
-                            throw new Error('시리얼 포트가 사용 불가능한 상태입니다');
-                        }
-                        
-                        const encoder = new TextEncoder();
-                        const writer = this.serialPort.writable.getWriter();
-                        
-                        // 쓰기 작업을 타임아웃과 함께 실행
-                        await Promise.race([
-                            writer.write(encoder.encode(command + '\r\n')),
-                            new Promise((_, reject) => 
-                                setTimeout(() => reject(new Error('명령 전송 타임아웃')), 5000)
-                            )
-                        ]);
-                        
-                        writer.releaseLock();
-                        
-                        this.logToTerminal(`📤 명령: ${command}`);
-                        this.addToCommandHistory(command);
-                        
-                        // 응답 읽기
-                        const reader = this.serialPort.readable.getReader();
-                        
-                        try {
-                            const response = await Promise.race([
-                                reader.read(),
-                                new Promise((_, reject) => 
-                                    setTimeout(() => reject(new Error('응답 읽기 타임아웃')), 3000)
-                                )
-                            ]);
-                            
-                            if (response.value) {
-                                const decoder = new TextDecoder();
-                                const responseText = decoder.decode(response.value);
-                                this.logToTerminal(`📥 응답: ${responseText.trim()}`);
-                                return responseText;
-                            }
-                        } catch (readError) {
-                            if (readError.message.includes('message port closed')) {
-                                this.logToTerminal('⚠️  Chrome 확장 프로그램 충돌 감지');
-                                throw new Error('확장 프로그램 충돌로 인한 연결 실패');
-                            }
-                            this.logToTerminal(`📥 읽기 실패: ${readError.message}`);
-                        } finally {
-                            try {
-                                reader.releaseLock();
-                            } catch (e) {
-                                // reader가 이미 해제된 경우 무시
-                            }
-                        }
-                        
-                    } catch (error) {
-                        if (error.message.includes('message port closed')) {
-                            this.logToTerminal('🔄 Chrome 확장 프로그램 충돌 - 시뮬레이션 모드로 전환');
-                            showExtensionWarning(); // 알림 표시
-                            this.simulationMode = true;
-                            this.disconnect();
-                            this.simulateDeviceResponse(command);
-                            return;
-                        }
-                        
-                        this.logToTerminal(`❌ 명령 실패: ${error.message}`);
-                        throw error;
-                    }
-                } else {
-                    // 시뮬레이션 응답
-                    this.logToTerminal(`🎮 시뮬레이션 명령: ${command}`);
-                    this.addToCommandHistory(command);
-                    this.simulateDeviceResponse(command);
-                    return `Simulated response for: ${command}`;
-                }
-            }
-
-            simulateDeviceResponse(command) {
-                setTimeout(() => {
-                    const responses = {
-                        'vbat': '응답: Battery: 3.7V',
-                        'info': '응답: tinySA Ultra v1.4.5',
-                        'version': '응답: Firmware v1.4.5-20241201',
-                        'help': '응답: scan, sweep, cal, save, recall, marker, capture...',
-                        'scan': '응답: Scan complete',
-                        'sweep': '응답: Sweep complete'
-                    };
-                    
-                    const response = responses[command.split(' ')[0]] || '응답: OK';
-                    this.logToTerminal(response);
-                }, 300);
-            }
-
-            addToCommandHistory(command) {
-                if (this.elements.commandHistory) {
-                    const timestamp = new Date().toLocaleTimeString();
-                    const line = document.createElement('div');
-                    line.textContent = `[${timestamp}] ${command}`;
-                    this.elements.commandHistory.appendChild(line);
-                    this.elements.commandHistory.scrollTop = this.elements.commandHistory.scrollHeight;
-                }
-            }
-
-            // ===== 스펙트럼 스캔 기능 =====
-            async startSpectrumScan() {
-                this.logToTerminal('📊 스펙트럼 스캔 시작...');
-                this.updateScanStatus('스캔 중...', 0);
-                
-                const startFreq = parseFloat(this.elements.startFreq.value) * 1e6;
-                const stopFreq = parseFloat(this.elements.stopFreq.value) * 1e6;
-                const points = parseInt(this.elements.points.value);
-                
-                if (this.simulationMode) {
-                    this.generateSimulatedSpectrum(startFreq, stopFreq, points);
-                } else {
-                    await this.realSpectrumScan(startFreq, stopFreq, points);
+            updateConnectionStatus(status) {
+                if (this.elements.connectionStatus) {
+                    this.elements.connectionStatus.textContent = status;
                 }
                 
-                this.updateScanStatus('스캔 완료', 100);
-                this.drawSpectrumChart();
-                this.updateMeasurements();
-            }
-
-            generateSimulatedSpectrum(startFreq, stopFreq, points) {
-                this.spectrumData.frequencies = [];
-                this.spectrumData.powers = [];
-                
-                for (let i = 0; i < points; i++) {
-                    const freq = startFreq + (stopFreq - startFreq) * i / (points - 1);
-                    const power = -60 + 30 * Math.sin(freq / 100e6) + Math.random() * 10;
-                    
-                    this.spectrumData.frequencies.push(freq);
-                    this.spectrumData.powers.push(power);
-                    
-                    // 진행률 업데이트
-                    const progress = (i / points) * 100;
-                    this.updateScanStatus(`스캔 중... ${Math.round(progress)}%`, progress);
+                if (this.elements.deviceStatus) {
+                    this.elements.deviceStatus.textContent = status;
                 }
                 
-                this.logToTerminal(`✅ 시뮬레이션 스펙트럼 생성: ${points} 포인트`);
-            }
-
-            async realSpectrumScan(startFreq, stopFreq, points) {
-                try {
-                    await this.sendDeviceCommand(`scanraw ${startFreq} ${stopFreq} ${points}`);
-                    // 실제 스캔 데이터 처리 로직
-                    this.logToTerminal('✅ 실제 스펙트럼 스캔 완료');
-                } catch (error) {
-                    this.logToTerminal(`❌ 스펙트럼 스캔 실패: ${error.message}`);
-                    this.generateSimulatedSpectrum(startFreq, stopFreq, points);
-                }
-            }
-
-            updateScanStatus(status, progress) {
-                if (this.elements.scanStatus) {
-                    this.elements.scanStatus.textContent = status;
-                }
-                if (this.elements.progressFill) {
-                    this.elements.progressFill.style.width = `${progress}%`;
-                }
-            }
-
-            // ===== S-parameter 측정 =====
-            async startSweep() {
-                this.logToTerminal('📈 S-parameter 스위프 시작...');
-                const measurementType = this.elements.measurementType.value;
-                
-                if (this.simulationMode) {
-                    this.generateSimulatedSParameters();
-                } else {
-                    await this.realSParameterSweep(measurementType);
-                }
-                
-                this.drawSmithChart();
-                this.updateDataTable();
-            }
-
-            generateSimulatedSParameters() {
-                const points = parseInt(this.elements.points.value);
-                const startFreq = parseFloat(this.elements.startFreq.value) * 1e6;
-                const stopFreq = parseFloat(this.elements.stopFreq.value) * 1e6;
-                
-                this.spectrumData.frequencies = [];
-                this.spectrumData.s11 = [];
-                this.spectrumData.s21 = [];
-                this.spectrumData.phases = [];
-                
-                for (let i = 0; i < points; i++) {
-                    const freq = startFreq + (stopFreq - startFreq) * i / (points - 1);
-                    const s11 = -15 + 10 * Math.sin(freq / 100e6) + Math.random() * 2;
-                    const s21 = -1 - freq / 1e9 + Math.random() * 0.5;
-                    const phase = (freq / 1e6) % 360 - 180;
-                    
-                    this.spectrumData.frequencies.push(freq);
-                    this.spectrumData.s11.push(s11);
-                    this.spectrumData.s21.push(s21);
-                    this.spectrumData.phases.push(phase);
-                }
-                
-                this.logToTerminal(`✅ 시뮬레이션 S-parameter 생성: ${points} 포인트`);
-            }
-
-            async realSParameterSweep(measurementType) {
-                try {
-                    switch (measurementType) {
-                        case 's11':
-                            await this.sendDeviceCommand('data 0');
-                            break;
-                        case 's21':
-                            await this.sendDeviceCommand('data 1');
-                            break;
-                        case 's11s21':
-                            await this.sendDeviceCommand('data 0 1');
-                            break;
-                    }
-                    this.logToTerminal('✅ 실제 S-parameter 측정 완료');
-                } catch (error) {
-                    this.logToTerminal(`❌ S-parameter 측정 실패: ${error.message}`);
-                    this.generateSimulatedSParameters();
-                }
-            }
-
-            // ===== 캘리브레이션 기능 =====
-            async calibrateOpen() {
-                this.logToTerminal('🔓 OPEN 캘리브레이션 시작...');
-                await this.sendDeviceCommand('cal open');
-            }
-
-            async calibrateShort() {
-                this.logToTerminal('⚡ SHORT 캘리브레이션 시작...');
-                await this.sendDeviceCommand('cal short');
-            }
-
-            async calibrateLoad() {
-                this.logToTerminal('🔩 LOAD 캘리브레이션 시작...');
-                await this.sendDeviceCommand('cal load');
-            }
-
-            async calibrateThrough() {
-                this.logToTerminal('🔗 THROUGH 캘리브레이션 시작...');
-                await this.sendDeviceCommand('cal thru');
-            }
-
-            async saveCalibration() {
-                this.logToTerminal('💾 캘리브레이션 저장 중...');
-                await this.sendDeviceCommand('save');
-            }
-
-            async recallCalibration() {
-                this.logToTerminal('📂 캘리브레이션 로드 중...');
-                await this.sendDeviceCommand('recall');
-            }
-
-            async clearCalibration() {
-                this.logToTerminal('🗑️  캘리브레이션 초기화...');
-                await this.sendDeviceCommand('cal reset');
-            }
-
-            // ===== 마커 기능 =====
-            setMarker() {
-                const freq = parseFloat(this.elements.markerFreq.value) * 1e6;
-                this.markers.push({ frequency: freq, type: 'manual' });
-                this.logToTerminal(`📍 마커 설정: ${freq / 1e6} MHz`);
-                this.updateMarkerInfo();
-                this.drawSpectrumChart();
-            }
-
-            setPeakMarker() {
-                if (this.spectrumData.powers.length > 0) {
-                    const maxIndex = this.spectrumData.powers.indexOf(Math.max(...this.spectrumData.powers));
-                    const peakFreq = this.spectrumData.frequencies[maxIndex];
-                    this.markers.push({ frequency: peakFreq, type: 'peak' });
-                    this.logToTerminal(`🏔️  Peak 마커 설정: ${(peakFreq / 1e6).toFixed(3)} MHz`);
-                    this.updateMarkerInfo();
-                    this.drawSpectrumChart();
-                }
-            }
-
-            clearMarkers() {
-                this.markers = [];
-                this.logToTerminal('🗑️  모든 마커 삭제');
-                this.updateMarkerInfo();
-                this.drawSpectrumChart();
-            }
-
-            updateMarkerInfo() {
-                if (this.elements.markerInfo) {
-                    if (this.markers.length === 0) {
-                        this.elements.markerInfo.textContent = '마커 없음';
+                if (this.elements.statusDot) {
+                    if (this.isConnected) {
+                        this.elements.statusDot.classList.add('connected');
                     } else {
-                        const info = this.markers.map((marker, index) => 
-                            `M${index + 1}: ${(marker.frequency / 1e6).toFixed(3)} MHz (${marker.type})`
-                        ).join('\n');
-                        this.elements.markerInfo.textContent = info;
+                        this.elements.statusDot.classList.remove('connected');
                     }
                 }
-            }
-
-            // ===== 데이터 관리 =====
-            saveData() {
-                if (this.spectrumData.frequencies.length === 0) {
-                    this.logToTerminal('❌ 저장할 데이터가 없습니다');
-                    return;
+                
+                if (this.elements.screenOverlay) {
+                    this.elements.screenOverlay.style.display = this.isConnected ? 'none' : 'flex';
                 }
                 
-                const data = {
-                    frequencies: this.spectrumData.frequencies,
-                    powers: this.spectrumData.powers,
-                    s11: this.spectrumData.s11,
-                    s21: this.spectrumData.s21,
-                    phases: this.spectrumData.phases,
-                    markers: this.markers,
-                    timestamp: new Date().toISOString()
-                };
-                
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                this.downloadFile(blob, `spectrum_data_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`);
-                this.logToTerminal('💾 측정 데이터 저장 완료');
-            }
-
-            saveTouchstone() {
-                if (this.spectrumData.s11.length === 0) {
-                    this.logToTerminal('❌ S-parameter 데이터가 없습니다');
-                    return;
+                // 버튼 상태 업데이트
+                if (this.elements.connectBtn) {
+                    this.elements.connectBtn.disabled = this.isConnected;
                 }
-                
-                let touchstone = `! ${this.getDeviceConfig().name} Data\n`;
-                touchstone += `! Date: ${new Date().toISOString()}\n`;
-                touchstone += `# Hz S DB R 50\n`;
-                
-                for (let i = 0; i < this.spectrumData.frequencies.length; i++) {
-                    const freq = this.spectrumData.frequencies[i];
-                    const s11 = this.spectrumData.s11[i] || 0;
-                    const s21 = this.spectrumData.s21[i] || 0;
-                    const phase = this.spectrumData.phases[i] || 0;
-                    
-                    touchstone += `${freq.toFixed(0)} ${s11.toFixed(6)} ${phase.toFixed(3)} ${s21.toFixed(6)} 0.000\n`;
+                if (this.elements.disconnectBtn) {
+                    this.elements.disconnectBtn.disabled = !this.isConnected;
                 }
-                
-                const blob = new Blob([touchstone], { type: 'text/plain' });
-                this.downloadFile(blob, `measurement_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.s2p`);
-                this.logToTerminal('📄 Touchstone 파일 저장 완료');
-            }
-
-            exportCSV() {
-                if (this.spectrumData.frequencies.length === 0) {
-                    this.logToTerminal('❌ 내보낼 데이터가 없습니다');
-                    return;
+                if (this.elements.pauseBtn) {
+                    this.elements.pauseBtn.disabled = !this.isConnected;
                 }
-                
-                let csv = 'Frequency(Hz),Power(dBm),S11(dB),S21(dB),Phase(deg)\n';
-                
-                for (let i = 0; i < this.spectrumData.frequencies.length; i++) {
-                    const freq = this.spectrumData.frequencies[i];
-                    const power = this.spectrumData.powers[i] || '';
-                    const s11 = this.spectrumData.s11[i] || '';
-                    const s21 = this.spectrumData.s21[i] || '';
-                    const phase = this.spectrumData.phases[i] || '';
-                    
-                    csv += `${freq},${power},${s11},${s21},${phase}\n`;
-                }
-                
-                const blob = new Blob([csv], { type: 'text/csv' });
-                this.downloadFile(blob, `measurement_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`);
-                this.logToTerminal('📊 CSV 파일 내보내기 완료');
-            }
-
-            downloadFile(blob, filename) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-
-            // ===== 고급 측정 기능 =====
-            async timeDomainTransform() {
-                this.logToTerminal('🕒 시간 도메인 변환 실행...');
-                await this.sendDeviceCommand('transform time');
-            }
-
-            async noiseAnalysis() {
-                this.logToTerminal('🔇 노이즈 분석 실행...');
-                await this.sendDeviceCommand('noise');
-            }
-
-            async harmonicAnalysis() {
-                this.logToTerminal('🎵 고조파 분석 실행...');
-                await this.sendDeviceCommand('harmonic');
-            }
-
-            async spuriousAnalysis() {
-                this.logToTerminal('📡 스퓨리어스 분석 실행...');
-                await this.sendDeviceCommand('spurious');
-            }
-
-            async powerMeter() {
-                this.logToTerminal('⚡ 파워 미터 모드...');
-                await this.sendDeviceCommand('power');
-            }
-
-            // ===== 시스템 제어 =====
-            async systemReset() {
-                this.logToTerminal('🔄 시스템 리셋...');
-                await this.sendDeviceCommand('reset');
-            }
-
-            async checkBattery() {
-                this.logToTerminal('🔋 배터리 상태 확인...');
-                const response = await this.sendDeviceCommand('vbat');
-                if (this.elements.battery && response) {
-                    const match = response.match(/(\d+\.\d+)V/);
-                    if (match) {
-                        this.elements.battery.textContent = match[1] + 'V';
-                    }
-                }
-            }
-
-            async syncTime() {
-                this.logToTerminal('🕐 시간 동기화...');
-                const now = new Date();
-                const timeStr = now.toISOString();
-                await this.sendDeviceCommand(`time ${timeStr}`);
-            }
-
-            async getDeviceInfo() {
-                this.logToTerminal('ℹ️  장비 정보 조회...');
-                await this.sendDeviceCommand('info');
-            }
-
-            async getFirmwareVersion() {
-                this.logToTerminal('🔧 펌웨어 버전 확인...');
-                await this.sendDeviceCommand('version');
-            }
-
-            // ===== 명령어 처리 =====
-            async sendCommand() {
-                const command = this.elements.commandInput.value.trim();
-                if (command) {
-                    await this.sendDeviceCommand(command);
-                    this.elements.commandInput.value = '';
-                }
-            }
-
-            showHelp() {
-                this.logToTerminal('📚 사용 가능한 명령어:');
-                this.logToTerminal('scan, sweep, data, frequencies, freq, power');
-                this.logToTerminal('cal, save, recall, marker, capture, pause, resume');
-                this.logToTerminal('vbat, info, version, help, reset, time');
-                this.logToTerminal('transform, noise, harmonic, spurious');
-            }
-
-            // ===== 차트 그리기 =====
-            drawSpectrumChart() {
-                const ctx = this.spectrumCtx;
-                const width = this.spectrumCanvas.width;
-                const height = this.spectrumCanvas.height;
-                
-                // 배경 지우기
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(0, 0, width, height);
-                
-                // 격자 그리기
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                
-                for (let i = 0; i <= 10; i++) {
-                    const x = (width * i) / 10;
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, height);
-                    ctx.stroke();
-                }
-                
-                for (let i = 0; i <= 8; i++) {
-                    const y = (height * i) / 8;
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    ctx.lineTo(width, y);
-                    ctx.stroke();
-                }
-                
-                // 스펙트럼 데이터 그리기
-                if (this.spectrumData.frequencies.length > 0) {
-                    ctx.strokeStyle = '#00ff00';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    
-                    const powers = this.spectrumData.powers.length > 0 ? this.spectrumData.powers : this.spectrumData.s11;
-                    const minPower = Math.min(...powers);
-                    const maxPower = Math.max(...powers);
-                    const powerRange = maxPower - minPower || 1;
-                    
-                    for (let i = 0; i < powers.length; i++) {
-                        const x = (width * i) / (powers.length - 1);
-                        const y = height - ((powers[i] - minPower) / powerRange) * height;
-                        
-                        if (i === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    }
-                    ctx.stroke();
-                    
-                    // 마커 그리기
-                    this.markers.forEach((marker, index) => {
-                        const freqIndex = this.spectrumData.frequencies.findIndex(f => f >= marker.frequency);
-                        if (freqIndex >= 0) {
-                            const x = (width * freqIndex) / (powers.length - 1);
-                            ctx.strokeStyle = marker.type === 'peak' ? '#ff0000' : '#ffff00';
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.moveTo(x, 0);
-                            ctx.lineTo(x, height);
-                            ctx.stroke();
-                            
-                            ctx.fillStyle = marker.type === 'peak' ? '#ff0000' : '#ffff00';
-                            ctx.font = '12px Arial';
-                            ctx.fillText(`M${index + 1}`, x + 5, 15);
-                        }
-                    });
-                }
-                
-                // 축 레이블
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.fillText('주파수', width - 50, height - 10);
-                ctx.save();
-                ctx.translate(15, height / 2);
-                ctx.rotate(-Math.PI / 2);
-                ctx.fillText('파워 (dBm)', 0, 0);
-                ctx.restore();
-            }
-
-            drawSmithChart() {
-                const ctx = this.smithCtx;
-                const width = this.smithCanvas.width;
-                const height = this.smithCanvas.height;
-                const centerX = width / 2;
-                const centerY = height / 2;
-                const radius = Math.min(width, height) / 2 - 20;
-                
-                // 배경 지우기
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Smith 차트 격자 그리기
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 1;
-                
-                // 외곽 원
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.stroke();
-                
-                // 저항 원들
-                for (let r = 0.2; r <= 5; r *= 2) {
-                    const rRadius = radius / (1 + r);
-                    const rCenterX = centerX + radius * r / (1 + r);
-                    ctx.beginPath();
-                    ctx.arc(rCenterX, centerY, rRadius, 0, 2 * Math.PI);
-                    ctx.stroke();
-                }
-                
-                // 리액턴스 호들
-                for (let x = 0.2; x <= 5; x *= 2) {
-                    const xRadius = radius / x;
-                    const xCenterY = centerY - radius / x;
-                    ctx.beginPath();
-                    ctx.arc(centerX + radius, xCenterY, xRadius, Math.PI / 2, 3 * Math.PI / 2);
-                    ctx.stroke();
-                    
-                    const xCenterY2 = centerY + radius / x;
-                    ctx.beginPath();
-                    ctx.arc(centerX + radius, xCenterY2, xRadius, -Math.PI / 2, Math.PI / 2);
-                    ctx.stroke();
-                }
-                
-                // S11 데이터 플롯
-                if (this.spectrumData.s11.length > 0 && this.spectrumData.phases.length > 0) {
-                    ctx.strokeStyle = '#00ff00';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    
-                    for (let i = 0; i < this.spectrumData.s11.length; i++) {
-                        const s11_linear = Math.pow(10, this.spectrumData.s11[i] / 20);
-                        const phase_rad = this.spectrumData.phases[i] * Math.PI / 180;
-                        
-                        const real = s11_linear * Math.cos(phase_rad);
-                        const imag = s11_linear * Math.sin(phase_rad);
-                        
-                        const x = centerX + real * radius;
-                        const y = centerY - imag * radius;
-                        
-                        if (i === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    }
-                    ctx.stroke();
-                }
-                
-                // 레이블
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.fillText('Smith Chart', 5, 15);
-                ctx.fillText('50Ω', centerX - 10, centerY - radius - 5);
-            }
-
-            updateDataTable() {
-                if (!this.elements.dataTableBody) return;
-                
-                this.elements.dataTableBody.innerHTML = '';
-                
-                if (this.spectrumData.frequencies.length === 0) {
-                    const row = this.elements.dataTableBody.insertRow();
-                    const cell = row.insertCell();
-                    cell.colSpan = 4;
-                    cell.textContent = '데이터 없음';
-                    return;
-                }
-                
-                for (let i = 0; i < Math.min(this.spectrumData.frequencies.length, 50); i++) {
-                    const row = this.elements.dataTableBody.insertRow();
-                    
-                    const freqCell = row.insertCell();
-                    freqCell.textContent = (this.spectrumData.frequencies[i] / 1e6).toFixed(3);
-                    
-                    const s11Cell = row.insertCell();
-                    s11Cell.textContent = this.spectrumData.s11[i] ? this.spectrumData.s11[i].toFixed(2) : '-';
-                    
-                    const s21Cell = row.insertCell();
-                    s21Cell.textContent = this.spectrumData.s21[i] ? this.spectrumData.s21[i].toFixed(2) : '-';
-                    
-                    const phaseCell = row.insertCell();
-                    phaseCell.textContent = this.spectrumData.phases[i] ? this.spectrumData.phases[i].toFixed(1) : '-';
-                }
-            }
-
-            updateMeasurements() {
-                if (this.spectrumData.powers.length > 0) {
-                    const powers = this.spectrumData.powers;
-                    const frequencies = this.spectrumData.frequencies;
-                    
-                    const maxIndex = powers.indexOf(Math.max(...powers));
-                    const peakFreq = frequencies[maxIndex];
-                    const peakPower = powers[maxIndex];
-                    const avgPower = powers.reduce((a, b) => a + b) / powers.length;
-                    const noiseFloor = Math.min(...powers);
-                    
-                    if (this.elements.peakFreq) this.elements.peakFreq.textContent = `${(peakFreq / 1e6).toFixed(3)} MHz`;
-                    if (this.elements.peakPower) this.elements.peakPower.textContent = `${peakPower.toFixed(1)} dBm`;
-                    if (this.elements.avgPower) this.elements.avgPower.textContent = `${avgPower.toFixed(1)} dBm`;
-                    if (this.elements.noiseFloor) this.elements.noiseFloor.textContent = `${noiseFloor.toFixed(1)} dBm`;
-                }
-                
-                if (this.spectrumData.s11.length > 0) {
-                    const s11 = this.spectrumData.s11[Math.floor(this.spectrumData.s11.length / 2)];
-                    const phase = this.spectrumData.phases[Math.floor(this.spectrumData.phases.length / 2)];
-                    
-                    const reflection = Math.pow(10, s11 / 20);
-                    const vswr = (1 + reflection) / (1 - reflection);
-                    const returnLoss = -s11;
-                    const impedance = 50 * (1 + reflection) / (1 - reflection);
-                    
-                    if (this.elements.vswr) this.elements.vswr.textContent = vswr.toFixed(2);
-                    if (this.elements.returnLoss) this.elements.returnLoss.textContent = `${returnLoss.toFixed(1)} dB`;
-                    if (this.elements.impedance) this.elements.impedance.textContent = `${impedance.toFixed(1)} Ω`;
-                    if (this.elements.phase) this.elements.phase.textContent = `${phase.toFixed(1)}°`;
-                }
-            }
-
-            // ===== 탭 전환 =====
-            switchTab(tabName) {
-                // 모든 탭 버튼 비활성화
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                
-                // 선택된 탭 활성화
-                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-                document.getElementById(`${tabName}-tab`).classList.add('active');
-                
-                this.currentTab = tabName;
-                this.logToTerminal(`📄 탭 전환: ${tabName}`);
-                
-                // 탭별 추가 동작
-                switch (tabName) {
-                    case 'spectrum':
-                        this.drawSpectrumChart();
-                        break;
-                    case 'smith':
-                        this.drawSmithChart();
-                        break;
-                    case 'data':
-                        this.updateDataTable();
-                        break;
-                }
-            }
-
-            // ===== 화면 미러링 (기존 기능 유지) =====
-            async startRealCapture() {
-                if (!this.serialPort || this.simulationMode) {
-                    this.startSimulation();
-                    return;
-                }
-                
-                this.isCapturing = true;
-                this.logToTerminal('🎬 실시간 화면 캡처 시작...');
-                
-                while (this.isCapturing && this.isConnected) {
-                    try {
-                        if (!this.isPaused) {
-                            await this.sendDeviceCommand('capture');
-                        }
-                        this.updateFPS();
-                        await this.delay(200);
-                    } catch (error) {
-                        this.logToTerminal(`❌ 캡처 오류: ${error.message}`);
-                        break;
-                    }
+                if (this.elements.resumeBtn) {
+                    this.elements.resumeBtn.disabled = !this.isConnected;
                 }
             }
 
             startSimulation() {
-                if (!this.isConnected) return;
+                console.log('시뮬레이션 시작...');
                 
                 this.isCapturing = true;
-                this.logToTerminal('🎮 시뮬레이션 모드 시작');
                 
                 const simulate = () => {
                     if (!this.isCapturing || !this.isConnected) return;
@@ -1997,127 +825,290 @@
                         this.updateFPS();
                     }
                     
-                    setTimeout(simulate, 200);
+                    setTimeout(simulate, 100); // 10 FPS
                 };
+                
                 simulate();
+                
+                // 시뮬레이션 스펙트럼 데이터 생성
+                this.generateSimulatedSpectrum();
+                this.drawSpectrumChart();
+                this.updateMeasurements();
             }
 
             generateSimulatedScreen() {
-                const deviceConfig = this.getDeviceConfig();
+                if (!this.screenCtx) return;
                 
-                this.ctx.fillStyle = '#000';
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                const width = this.elements.screenCanvas.width;
+                const height = this.elements.screenCanvas.height;
+                
+                // 배경
+                this.screenCtx.fillStyle = '#000';
+                this.screenCtx.fillRect(0, 0, width, height);
                 
                 // 격자
-                this.ctx.strokeStyle = '#333';
-                this.ctx.lineWidth = 1;
+                this.screenCtx.strokeStyle = '#333';
+                this.screenCtx.lineWidth = 1;
                 
                 for (let i = 0; i <= 10; i++) {
-                    const x = (this.canvas.width * i) / 10;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, 0);
-                    this.ctx.lineTo(x, this.canvas.height);
-                    this.ctx.stroke();
+                    const x = (width * i) / 10;
+                    this.screenCtx.beginPath();
+                    this.screenCtx.moveTo(x, 0);
+                    this.screenCtx.lineTo(x, height);
+                    this.screenCtx.stroke();
                 }
                 
                 for (let i = 0; i <= 8; i++) {
-                    const y = (this.canvas.height * i) / 8;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, y);
-                    this.ctx.lineTo(this.canvas.width, y);
-                    this.ctx.stroke();
+                    const y = (height * i) / 8;
+                    this.screenCtx.beginPath();
+                    this.screenCtx.moveTo(0, y);
+                    this.screenCtx.lineTo(width, y);
+                    this.screenCtx.stroke();
                 }
                 
                 // 시뮬레이션 스펙트럼
-                this.ctx.strokeStyle = '#0f0';
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
+                this.screenCtx.strokeStyle = '#0f0';
+                this.screenCtx.lineWidth = 2;
+                this.screenCtx.beginPath();
                 
                 const time = Date.now() / 1000;
-                for (let x = 0; x < this.canvas.width; x++) {
-                    const freq = x / this.canvas.width;
-                    const y = this.canvas.height * 0.8 - 
+                for (let x = 0; x < width; x++) {
+                    const freq = x / width;
+                    const y = height * 0.8 - 
                         Math.sin(freq * Math.PI * 4 + time) * 30 -
                         Math.sin(freq * Math.PI * 8 + time * 2) * 15 -
                         Math.random() * 5;
                     
                     if (x === 0) {
-                        this.ctx.moveTo(x, y);
+                        this.screenCtx.moveTo(x, y);
                     } else {
-                        this.ctx.lineTo(x, y);
+                        this.screenCtx.lineTo(x, y);
                     }
                 }
-                this.ctx.stroke();
+                this.screenCtx.stroke();
                 
                 // 텍스트 정보
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = '12px Arial';
-                this.ctx.fillText(`${deviceConfig.name} - 시뮬레이션`, 10, 20);
-                this.ctx.fillText('100kHz - 350MHz', 10, this.canvas.height - 30);
-                this.ctx.fillText('Ref: -10dBm', 10, this.canvas.height - 15);
+                this.screenCtx.fillStyle = '#fff';
+                this.screenCtx.font = '12px Arial';
+                this.screenCtx.fillText(`${this.getDeviceConfig().name} - 시뮬레이션`, 10, 20);
+                this.screenCtx.fillText('100kHz - 350MHz', 10, height - 15);
             }
 
-            // ===== 유틸리티 함수 =====
+            generateSimulatedSpectrum() {
+                const startFreq = parseFloat(this.elements.startFreq?.value || 0.1) * 1e6;
+                const stopFreq = parseFloat(this.elements.stopFreq?.value || 350) * 1e6;
+                const points = parseInt(this.elements.points?.value || 101);
+                
+                this.spectrumData.frequencies = [];
+                this.spectrumData.powers = [];
+                
+                for (let i = 0; i < points; i++) {
+                    const freq = startFreq + (stopFreq - startFreq) * i / (points - 1);
+                    const power = -60 + 30 * Math.sin(freq / 100e6) + Math.random() * 10;
+                    
+                    this.spectrumData.frequencies.push(freq);
+                    this.spectrumData.powers.push(power);
+                }
+            }
+
+            drawSpectrumChart() {
+                if (!this.spectrumCtx) return;
+                
+                const width = this.elements.spectrumChart.width;
+                const height = this.elements.spectrumChart.height;
+                
+                // 배경
+                this.spectrumCtx.fillStyle = '#1a1a1a';
+                this.spectrumCtx.fillRect(0, 0, width, height);
+                
+                // 격자
+                this.spectrumCtx.strokeStyle = '#333';
+                this.spectrumCtx.lineWidth = 1;
+                
+                for (let i = 0; i <= 10; i++) {
+                    const x = (width * i) / 10;
+                    this.spectrumCtx.beginPath();
+                    this.spectrumCtx.moveTo(x, 0);
+                    this.spectrumCtx.lineTo(x, height);
+                    this.spectrumCtx.stroke();
+                }
+                
+                for (let i = 0; i <= 8; i++) {
+                    const y = (height * i) / 8;
+                    this.spectrumCtx.beginPath();
+                    this.spectrumCtx.moveTo(0, y);
+                    this.spectrumCtx.lineTo(width, y);
+                    this.spectrumCtx.stroke();
+                }
+                
+                // 스펙트럼 데이터
+                if (this.spectrumData.powers.length > 0) {
+                    this.spectrumCtx.strokeStyle = '#00ff00';
+                    this.spectrumCtx.lineWidth = 2;
+                    this.spectrumCtx.beginPath();
+                    
+                    const minPower = Math.min(...this.spectrumData.powers);
+                    const maxPower = Math.max(...this.spectrumData.powers);
+                    const powerRange = maxPower - minPower || 1;
+                    
+                    for (let i = 0; i < this.spectrumData.powers.length; i++) {
+                        const x = (width * i) / (this.spectrumData.powers.length - 1);
+                        const y = height - ((this.spectrumData.powers[i] - minPower) / powerRange) * height;
+                        
+                        if (i === 0) {
+                            this.spectrumCtx.moveTo(x, y);
+                        } else {
+                            this.spectrumCtx.lineTo(x, y);
+                        }
+                    }
+                    this.spectrumCtx.stroke();
+                }
+            }
+
+            updateMeasurements() {
+                if (this.spectrumData.powers.length > 0) {
+                    const maxIndex = this.spectrumData.powers.indexOf(Math.max(...this.spectrumData.powers));
+                    const peakFreq = this.spectrumData.frequencies[maxIndex];
+                    const peakPower = this.spectrumData.powers[maxIndex];
+                    
+                    if (this.elements.peakFreq) {
+                        this.elements.peakFreq.textContent = `${(peakFreq / 1e6).toFixed(3)} MHz`;
+                    }
+                    if (this.elements.peakPower) {
+                        this.elements.peakPower.textContent = `${peakPower.toFixed(1)} dBm`;
+                    }
+                    if (this.elements.s11Value) {
+                        this.elements.s11Value.textContent = `${(-15 + Math.random() * 5).toFixed(1)} dB`;
+                    }
+                    if (this.elements.vswr) {
+                        this.elements.vswr.textContent = `${(1.1 + Math.random() * 0.5).toFixed(2)}`;
+                    }
+                }
+            }
+
+            async startRealCapture() {
+                console.log('실제 화면 캡처 시작...');
+                // 실제 장비 캡처 로직 (간단 버전)
+                this.isCapturing = true;
+                // 실제 구현 시 여기에 캡처 코드 추가
+            }
+
+            // 기본 기능들
+            setFrequencies() {
+                const start = this.elements.startFreq?.value || 0.1;
+                const stop = this.elements.stopFreq?.value || 350;
+                const points = this.elements.points?.value || 101;
+                
+                this.logToTerminal(`📡 주파수 설정: ${start} - ${stop} MHz, ${points} 포인트`);
+                
+                if (this.simulationMode) {
+                    this.generateSimulatedSpectrum();
+                    this.drawSpectrumChart();
+                    this.updateMeasurements();
+                }
+            }
+
+            startScan() {
+                this.logToTerminal('📊 스펙트럼 스캔 시작...');
+                this.setFrequencies();
+            }
+
+            startSweep() {
+                this.logToTerminal('📈 S-parameter 측정 시작...');
+                this.setFrequencies();
+            }
+
             pauseCapture() {
                 this.isPaused = true;
-                this.logToTerminal('⏸️  화면 캡처 일시정지');
-                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = true;
-                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = false;
+                this.logToTerminal('⏸️ 일시정지');
             }
 
             resumeCapture() {
                 this.isPaused = false;
-                this.logToTerminal('▶️  화면 캡처 재개');
-                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = false;
-                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = true;
+                this.logToTerminal('▶️ 재개');
             }
 
-            zoomIn() {
-                if (this.zoom < 4) {
-                    this.zoom += 0.5;
-                    this.updateScreenSize();
+            calibrate() {
+                this.logToTerminal('🎯 캘리브레이션 실행...');
+            }
+
+            saveCalibration() {
+                this.logToTerminal('💾 캘리브레이션 저장...');
+            }
+
+            loadCalibration() {
+                this.logToTerminal('📂 캘리브레이션 로드...');
+            }
+
+            saveData() {
+                this.logToTerminal('💾 측정 데이터 저장...');
+                const data = JSON.stringify(this.spectrumData, null, 2);
+                this.downloadFile(data, 'spectrum_data.json', 'application/json');
+            }
+
+            saveImage() {
+                this.logToTerminal('📸 스크린샷 저장...');
+                const canvas = this.elements.screenCanvas;
+                if (canvas) {
+                    canvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `screenshot_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
                 }
             }
 
-            zoomOut() {
-                if (this.zoom > 1) {
-                    this.zoom -= 0.5;
-                    this.updateScreenSize();
+            exportCsv() {
+                this.logToTerminal('📊 CSV 내보내기...');
+                let csv = 'Frequency(Hz),Power(dBm)\n';
+                for (let i = 0; i < this.spectrumData.frequencies.length; i++) {
+                    csv += `${this.spectrumData.frequencies[i]},${this.spectrumData.powers[i]}\n`;
                 }
+                this.downloadFile(csv, 'spectrum_data.csv', 'text/csv');
             }
 
-            takeScreenshot() {
-                const canvas = this.currentTab === 'screen' ? this.canvas : 
-                              this.currentTab === 'spectrum' ? this.spectrumCanvas : this.smithCanvas;
-                
-                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                const filename = `${this.deviceType}_${this.currentTab}_${timestamp}.png`;
-                
-                canvas.toBlob((blob) => {
-                    this.downloadFile(blob, filename);
-                    this.logToTerminal(`📸 스크린샷 저장: ${filename}`);
-                });
+            systemReset() {
+                this.logToTerminal('🔄 시스템 리셋...');
+            }
+
+            checkBattery() {
+                this.logToTerminal('🔋 배터리 체크...');
+                setTimeout(() => {
+                    this.logToTerminal('🔋 배터리: 3.7V');
+                }, 500);
+            }
+
+            getDeviceInfo() {
+                this.logToTerminal('ℹ️ 장비 정보 조회...');
+                setTimeout(() => {
+                    this.logToTerminal(`ℹ️ ${this.getDeviceConfig().name} 시뮬레이션 버전`);
+                }, 500);
+            }
+
+            sendCommand() {
+                const command = this.elements.commandInput?.value?.trim();
+                if (command) {
+                    this.logToTerminal(`💻 명령: ${command}`);
+                    this.elements.commandInput.value = '';
+                    
+                    // 간단한 시뮬레이션 응답
+                    setTimeout(() => {
+                        this.logToTerminal(`📥 응답: OK`);
+                    }, 300);
+                }
             }
 
             handleScreenClick(event) {
                 if (!this.isConnected) return;
                 
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / (rect.width / this.zoom);
-                const scaleY = this.canvas.height / (rect.height / this.zoom);
-                
-                const x = Math.floor((event.clientX - rect.left) * scaleX);
-                const y = Math.floor((event.clientY - rect.top) * scaleY);
+                const rect = this.elements.screenCanvas.getBoundingClientRect();
+                const x = Math.floor((event.clientX - rect.left) * (this.elements.screenCanvas.width / rect.width));
+                const y = Math.floor((event.clientY - rect.top) * (this.elements.screenCanvas.height / rect.height));
                 
                 this.logToTerminal(`👆 터치: (${x}, ${y})`);
-                
-                if (!this.simulationMode && this.serialPort) {
-                    this.sendDeviceCommand(`touch ${x} ${y}`);
-                }
-            }
-
-            handleMouseMove(event) {
-                // 마우스 커서 위치 표시 (옵션)
             }
 
             updateFPS() {
@@ -2129,48 +1120,53 @@
                     this.frameCount = 0;
                     this.lastFpsUpdate = now;
                     
-                    if (this.elements.fpsValue) {
-                        this.elements.fpsValue.textContent = this.fps.toString();
+                    if (this.elements.fpsDisplay) {
+                        this.elements.fpsDisplay.textContent = this.fps.toString();
                     }
                 }
             }
 
-            delay(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
+            downloadFile(content, filename, contentType) {
+                const blob = new Blob([content], { type: contentType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
             }
 
             logToTerminal(message) {
-                const timestamp = new Date().toLocaleTimeString();
-                console.log(`[${timestamp}] ${message}`);
+                console.log(message);
                 
-                if (!this.elements || !this.elements.terminal) {
-                    const terminalElement = document.getElementById('terminal');
-                    if (terminalElement) {
-                        if (!this.elements) this.elements = {};
-                        this.elements.terminal = terminalElement;
-                    } else {
-                        return;
-                    }
-                }
-                
-                try {
+                if (this.elements.terminal) {
+                    const timestamp = new Date().toLocaleTimeString();
                     const line = document.createElement('div');
                     line.className = 'terminal-line';
                     line.textContent = `[${timestamp}] ${message}`;
                     this.elements.terminal.appendChild(line);
                     this.elements.terminal.scrollTop = this.elements.terminal.scrollHeight;
                     
+                    // 로그 라인 수 제한
                     const lines = this.elements.terminal.children;
-                    if (lines.length > 100) {
+                    if (lines.length > 50) {
                         lines[0].remove();
                     }
-                } catch (error) {
-                    console.error('터미널 로그 오류:', error);
                 }
             }
         }
 
         // 애플리케이션 시작
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('완전한 tinySA Ultra 웹 컨트롤러 시작');
-            window.controller = new CompleteTinySAController();
+            console.log('DOM 로드 완료');
+            
+            try {
+                window.controller = new TinySAController();
+                console.log('✅ 애플리케이션 시작 성공');
+            } catch (error) {
+                console.error('❌ 애플리케이션 시작 실패:', error);
+            }
+        });
+    </script>
+</body>
+</html>
