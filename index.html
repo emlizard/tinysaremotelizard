@@ -143,14 +143,6 @@
             box-shadow: none;
         }
 
-        button.test-button {
-            background: linear-gradient(45deg, #ff9800, #f57c00);
-        }
-
-        button.test-button:hover {
-            background: linear-gradient(45deg, #f57c00, #ef6c00);
-        }
-
         .display-area {
             display: flex;
             flex-direction: column;
@@ -265,14 +257,14 @@
             font-size: 0.8rem;
         }
 
-        .debug-info {
-            background: rgba(0, 100, 0, 0.1);
-            border: 1px solid #00ff00;
+        .webserial-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid #ffc107;
             border-radius: 8px;
-            padding: 0.5rem;
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            color: #00ff00;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: #ffc107;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 1200px) {
@@ -311,6 +303,12 @@
     <div class="container">
         <!-- 왼쪽 제어 패널 -->
         <div class="panel">
+            <!-- WebSerial 지원 확인 -->
+            <div id="webserialWarning" class="webserial-warning" style="display: none;">
+                ⚠️ WebSerial API가 지원되지 않습니다.<br>
+                Chrome/Edge 브라우저의 HTTPS 환경에서 사용하세요.
+            </div>
+
             <!-- 연결 상태 -->
             <div class="section">
                 <h3>🔌 장비 연결</h3>
@@ -348,7 +346,6 @@
             <!-- 스캔 제어 -->
             <div class="section">
                 <h3>🔍 스캔 제어</h3>
-                <button class="test-button" id="testDataBtn">🧪 테스트 데이터 생성</button>
                 <button id="scanBtn">스펙트럼 스캔</button>
                 <button id="sweepBtn">S-parameter 측정</button>
                 <div class="controls">
@@ -378,7 +375,7 @@
                     <div class="screen-overlay" id="screenOverlay">
                         <div>🔌 장비를 연결하세요</div>
                         <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
-                            또는 "테스트 데이터 생성" 클릭
+                            Chrome/Edge 브라우저의 HTTPS 환경 필요
                         </div>
                     </div>
                 </div>
@@ -391,10 +388,8 @@
             <div class="chart-container">
                 <h3 style="color: #64b5f6; margin-bottom: 1rem;">📊 스펙트럼 분석</h3>
                 <canvas id="spectrumChart" width="800" height="250"></canvas>
-                <div class="debug-info">
-                    <div>상태: <span id="spectrumStatus">대기 중 - 테스트 데이터 생성 버튼을 클릭하세요</span></div>
-                    <div>캔버스: <span id="canvasInfo">-</span></div>
-                    <div>데이터 범위: <span id="dataRange">-</span></div>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #ccc;">
+                    스펙트럼 데이터: <span id="spectrumStatus">장비 연결 후 데이터 수신</span>
                 </div>
             </div>
         </div>
@@ -453,24 +448,25 @@
             <div class="section">
                 <h3>📟 통신 로그</h3>
                 <div class="terminal" id="terminal">
-                    <div class="terminal-line">tinySA Ultra 웹 컨트롤러 v1.1</div>
-                    <div class="terminal-line">개선된 버전으로 시작합니다.</div>
-                    <div class="terminal-line">🧪 테스트 데이터 생성 버튼을 클릭해보세요!</div>
+                    <div class="terminal-line">tinySA Ultra 웹 컨트롤러 v2.0</div>
+                    <div class="terminal-line">실제 장비 연결 전용 버전</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        console.log('=== 스크립트 로딩 시작 ===');
+        console.log('=== tinySA Ultra 웹 컨트롤러 시작 ===');
         
         class TinySAController {
             constructor() {
-                console.log('=== TinySAController 생성자 시작 ===');
+                console.log('TinySAController 초기화 시작...');
                 
                 // 기본 속성
                 this.isConnected = false;
                 this.serialPort = null;
+                this.reader = null;
+                this.writer = null;
                 this.deviceType = 'tinysa-ultra';
                 this.zoom = 1;
                 this.isCapturing = false;
@@ -479,32 +475,45 @@
                 this.frameCount = 0;
                 this.lastFpsUpdate = Date.now();
                 
-                // WebSerial 지원 확인
-                this.simulationMode = !('serial' in navigator) || window.location.protocol !== 'https:';
-                
-                // 측정 데이터 초기화
+                // 측정 데이터
                 this.spectrumData = {
                     frequencies: [],
                     powers: []
                 };
                 
-                console.log('시뮬레이션 모드:', this.simulationMode);
+                // WebSerial 지원 확인
+                this.checkWebSerialSupport();
                 
-                // 초기화 과정
+                // 초기화
                 this.initializeElements();
                 this.setupEventListeners();
                 this.initializeCanvases();
                 
                 this.logToTerminal('✅ 컨트롤러 초기화 완료');
+                this.logToTerminal('🔗 실제 장비 연결 전용 버전');
                 
-                if (this.simulationMode) {
-                    this.logToTerminal('🎮 시뮬레이션 모드 활성화');
-                    this.logToTerminal('💡 "🧪 테스트 데이터 생성" 버튼을 클릭해서 그래프를 확인하세요!');
+                console.log('TinySAController 초기화 완료');
+            }
+
+            checkWebSerialSupport() {
+                if (!('serial' in navigator)) {
+                    console.warn('WebSerial API가 지원되지 않습니다');
+                    this.showWebSerialWarning();
+                    this.logToTerminal('⚠️ WebSerial API 미지원 - Chrome/Edge 브라우저 필요');
+                } else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                    console.warn('HTTPS 환경이 아닙니다');
+                    this.showWebSerialWarning();
+                    this.logToTerminal('⚠️ HTTPS 환경 필요');
                 } else {
-                    this.logToTerminal('🔗 실제 연결 모드');
+                    this.logToTerminal('✅ WebSerial API 지원됨');
                 }
-                
-                console.log('=== TinySAController 초기화 완료 ===');
+            }
+
+            showWebSerialWarning() {
+                const warning = document.getElementById('webserialWarning');
+                if (warning) {
+                    warning.style.display = 'block';
+                }
             }
 
             initializeElements() {
@@ -514,144 +523,107 @@
                 const elementIds = [
                     'statusDot', 'connectionStatus', 'deviceType', 'deviceStatus', 'fpsDisplay', 'dataCount',
                     'connectBtn', 'disconnectBtn', 'startFreq', 'stopFreq', 'points', 'setFreqBtn',
-                    'scanBtn', 'sweepBtn', 'pauseBtn', 'resumeBtn', 'testDataBtn',
+                    'scanBtn', 'sweepBtn', 'pauseBtn', 'resumeBtn',
                     'calBtn', 'saveCalBtn', 'loadCalBtn', 'deviceScreen', 'screenOverlay', 'screenCanvas',
-                    'spectrumChart', 'spectrumStatus', 'canvasInfo', 'dataRange',
+                    'spectrumChart', 'spectrumStatus',
                     'peakFreq', 'peakPower', 's11Value', 'vswr',
                     'saveDataBtn', 'saveImageBtn', 'exportCsvBtn',
                     'resetBtn', 'vbatBtn', 'infoBtn',
                     'commandInput', 'sendCommandBtn', 'terminal'
                 ];
                 
-                let foundElements = 0;
-                let missingElements = [];
-                
                 elementIds.forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        this.elements[id] = element;
-                        foundElements++;
-                    } else {
-                        missingElements.push(id);
-                        console.warn(`요소를 찾을 수 없음: ${id}`);
-                    }
+                    this.elements[id] = document.getElementById(id);
                 });
                 
-                console.log(`DOM 요소 초기화 완료: ${foundElements}/${elementIds.length}개 발견`);
-                if (missingElements.length > 0) {
-                    console.warn('누락된 요소들:', missingElements);
-                }
+                console.log('DOM 요소 초기화 완료');
             }
 
             setupEventListeners() {
                 console.log('이벤트 리스너 설정 중...');
                 
-                try {
-                    // 테스트 데이터 생성 버튼 (가장 중요!)
-                    this.elements.testDataBtn?.addEventListener('click', () => {
-                        console.log('🧪 테스트 데이터 생성 버튼 클릭됨');
-                        this.generateTestData();
-                    });
+                // 장비 타입 변경
+                this.elements.deviceType?.addEventListener('change', (e) => {
+                    this.deviceType = e.target.value;
+                    this.updateDeviceConfig();
+                });
 
-                    // 장비 타입 변경
-                    this.elements.deviceType?.addEventListener('change', (e) => {
-                        this.deviceType = e.target.value;
-                        this.updateDeviceConfig();
-                    });
+                // 연결 제어
+                this.elements.connectBtn?.addEventListener('click', () => this.connect());
+                this.elements.disconnectBtn?.addEventListener('click', () => this.disconnect());
 
-                    // 연결 제어
-                    this.elements.connectBtn?.addEventListener('click', () => this.connect());
-                    this.elements.disconnectBtn?.addEventListener('click', () => this.disconnect());
+                // 주파수 설정
+                this.elements.setFreqBtn?.addEventListener('click', () => this.setFrequencies());
 
-                    // 주파수 설정
-                    this.elements.setFreqBtn?.addEventListener('click', () => this.setFrequencies());
+                // 스캔 제어
+                this.elements.scanBtn?.addEventListener('click', () => this.startScan());
+                this.elements.sweepBtn?.addEventListener('click', () => this.startSweep());
+                this.elements.pauseBtn?.addEventListener('click', () => this.pauseCapture());
+                this.elements.resumeBtn?.addEventListener('click', () => this.resumeCapture());
 
-                    // 스캔 제어
-                    this.elements.scanBtn?.addEventListener('click', () => this.startScan());
-                    this.elements.sweepBtn?.addEventListener('click', () => this.startSweep());
-                    this.elements.pauseBtn?.addEventListener('click', () => this.pauseCapture());
-                    this.elements.resumeBtn?.addEventListener('click', () => this.resumeCapture());
+                // 캘리브레이션
+                this.elements.calBtn?.addEventListener('click', () => this.calibrate());
+                this.elements.saveCalBtn?.addEventListener('click', () => this.saveCalibration());
+                this.elements.loadCalBtn?.addEventListener('click', () => this.loadCalibration());
 
-                    // 캘리브레이션
-                    this.elements.calBtn?.addEventListener('click', () => this.calibrate());
-                    this.elements.saveCalBtn?.addEventListener('click', () => this.saveCalibration());
-                    this.elements.loadCalBtn?.addEventListener('click', () => this.loadCalibration());
+                // 데이터 관리
+                this.elements.saveDataBtn?.addEventListener('click', () => this.saveData());
+                this.elements.saveImageBtn?.addEventListener('click', () => this.saveImage());
+                this.elements.exportCsvBtn?.addEventListener('click', () => this.exportCsv());
 
-                    // 데이터 관리
-                    this.elements.saveDataBtn?.addEventListener('click', () => this.saveData());
-                    this.elements.saveImageBtn?.addEventListener('click', () => this.saveImage());
-                    this.elements.exportCsvBtn?.addEventListener('click', () => this.exportCsv());
+                // 시스템 제어
+                this.elements.resetBtn?.addEventListener('click', () => this.systemReset());
+                this.elements.vbatBtn?.addEventListener('click', () => this.checkBattery());
+                this.elements.infoBtn?.addEventListener('click', () => this.getDeviceInfo());
 
-                    // 시스템 제어
-                    this.elements.resetBtn?.addEventListener('click', () => this.systemReset());
-                    this.elements.vbatBtn?.addEventListener('click', () => this.checkBattery());
-                    this.elements.infoBtn?.addEventListener('click', () => this.getDeviceInfo());
+                // 명령어
+                this.elements.sendCommandBtn?.addEventListener('click', () => this.sendCommand());
+                this.elements.commandInput?.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendCommand();
+                });
 
-                    // 명령어
-                    this.elements.sendCommandBtn?.addEventListener('click', () => this.sendCommand());
-                    this.elements.commandInput?.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') this.sendCommand();
-                    });
+                // 화면 클릭
+                this.elements.screenCanvas?.addEventListener('click', (e) => this.handleScreenClick(e));
 
-                    // 화면 클릭
-                    this.elements.screenCanvas?.addEventListener('click', (e) => this.handleScreenClick(e));
+                // 키보드 단축키
+                document.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case '+':
+                            this.zoom = Math.min(this.zoom + 0.2, 3);
+                            this.updateScreenSize();
+                            break;
+                        case '-':
+                            this.zoom = Math.max(this.zoom - 0.2, 0.5);
+                            this.updateScreenSize();
+                            break;
+                        case 's':
+                        case 'S':
+                            if (e.ctrlKey) return;
+                            e.preventDefault();
+                            this.saveImage();
+                            break;
+                    }
+                });
 
-                    // 키보드 단축키
-                    document.addEventListener('keydown', (e) => {
-                        switch (e.key) {
-                            case '+':
-                                this.zoom = Math.min(this.zoom + 0.2, 3);
-                                this.updateScreenSize();
-                                break;
-                            case '-':
-                                this.zoom = Math.max(this.zoom - 0.2, 0.5);
-                                this.updateScreenSize();
-                                break;
-                            case 's':
-                            case 'S':
-                                if (e.ctrlKey) return;
-                                e.preventDefault();
-                                this.saveImage();
-                                break;
-                        }
-                    });
-
-                    console.log('✅ 이벤트 리스너 설정 완료');
-                } catch (error) {
-                    console.error('❌ 이벤트 리스너 설정 실패:', error);
-                }
+                console.log('이벤트 리스너 설정 완료');
             }
 
             initializeCanvases() {
-                console.log('=== 캔버스 초기화 시작 ===');
+                console.log('캔버스 초기화 중...');
                 
-                try {
-                    // 화면 미러링 캔버스
-                    if (this.elements.screenCanvas) {
-                        this.screenCtx = this.elements.screenCanvas.getContext('2d');
-                        console.log('✅ 화면 캔버스 컨텍스트 생성 완료');
-                        this.updateDeviceConfig();
-                    } else {
-                        console.error('❌ screenCanvas 요소가 없습니다!');
-                    }
-
-                    // 스펙트럼 차트 캔버스
-                    if (this.elements.spectrumChart) {
-                        this.spectrumCtx = this.elements.spectrumChart.getContext('2d');
-                        console.log('✅ 스펙트럼 캔버스 컨텍스트 생성 완료');
-                        console.log('캔버스 크기:', this.elements.spectrumChart.width, 'x', this.elements.spectrumChart.height);
-                        
-                        // 초기 상태 표시
-                        this.drawEmptyChart();
-                        this.updateCanvasInfo();
-                    } else {
-                        console.error('❌ spectrumChart 요소가 없습니다!');
-                    }
-
-                    console.log('=== 캔버스 초기화 완료 ===');
-                } catch (error) {
-                    console.error('❌ 캔버스 초기화 실패:', error);
+                // 화면 미러링 캔버스
+                if (this.elements.screenCanvas) {
+                    this.screenCtx = this.elements.screenCanvas.getContext('2d');
+                    this.updateDeviceConfig();
                 }
+
+                // 스펙트럼 차트 캔버스
+                if (this.elements.spectrumChart) {
+                    this.spectrumCtx = this.elements.spectrumChart.getContext('2d');
+                    this.drawEmptyChart();
+                }
+
+                console.log('캔버스 초기화 완료');
             }
 
             drawEmptyChart() {
@@ -688,255 +660,15 @@
                 this.spectrumCtx.fillStyle = '#888';
                 this.spectrumCtx.font = 'bold 16px Arial';
                 this.spectrumCtx.textAlign = 'center';
-                this.spectrumCtx.fillText('스펙트럼 데이터가 없습니다', width / 2, height / 2 - 10);
-                this.spectrumCtx.font = '14px Arial';
-                this.spectrumCtx.fillText('"🧪 테스트 데이터 생성" 버튼을 클릭하세요', width / 2, height / 2 + 15);
+                this.spectrumCtx.fillText('장비를 연결하세요', width / 2, height / 2);
             }
-
-            updateCanvasInfo() {
-                if (this.elements.canvasInfo && this.elements.spectrumChart) {
-                    const canvas = this.elements.spectrumChart;
-                    this.elements.canvasInfo.textContent = `${canvas.width}×${canvas.height}px`;
-                }
-            }
-
-            generateTestData() {
-                console.log('=== 테스트 데이터 생성 시작 ===');
-                this.logToTerminal('🧪 테스트 데이터 생성 시작...');
-                
-                // 스펙트럼 데이터 생성
-                this.generateSimulatedSpectrum();
-                
-                // 차트 그리기
-                this.drawSpectrumChart();
-                
-                // 측정값 업데이트
-                this.updateMeasurements();
-                
-                this.logToTerminal('✅ 테스트 데이터 생성 완료!');
-                console.log('=== 테스트 데이터 생성 완료 ===');
-            }
-
-            generateSimulatedSpectrum() {
-                console.log('📊 스펙트럼 데이터 생성 중...');
-                
-                const startFreq = parseFloat(this.elements.startFreq?.value || 100) * 1e6;
-                const stopFreq = parseFloat(this.elements.stopFreq?.value || 1000) * 1e6;
-                const points = parseInt(this.elements.points?.value || 101);
-                
-                console.log(`설정 - 시작: ${startFreq/1e6}MHz, 종료: ${stopFreq/1e6}MHz, 포인트: ${points}`);
-                
-                // 데이터 배열 초기화
-                this.spectrumData.frequencies = [];
-                this.spectrumData.powers = [];
-                
-                for (let i = 0; i < points; i++) {
-                    const freq = startFreq + (stopFreq - startFreq) * i / (points - 1);
-                    
-                    // 현실적인 스펙트럼 시뮬레이션
-                    let power = -80; // 기본 노이즈 플로어
-                    
-                    // 여러 피크 생성
-                    const freqNorm = (freq - startFreq) / (stopFreq - startFreq);
-                    
-                    // 첫 번째 피크 (30% 지점)
-                    power += 25 * Math.exp(-Math.pow((freqNorm - 0.3) * 15, 2));
-                    
-                    // 두 번째 피크 (70% 지점)
-                    power += 20 * Math.exp(-Math.pow((freqNorm - 0.7) * 12, 2));
-                    
-                    // 세 번째 작은 피크 (50% 지점)
-                    power += 10 * Math.exp(-Math.pow((freqNorm - 0.5) * 20, 2));
-                    
-                    // 랜덤 노이즈
-                    power += (Math.random() - 0.5) * 6;
-                    
-                    this.spectrumData.frequencies.push(freq);
-                    this.spectrumData.powers.push(power);
-                }
-                
-                // UI 업데이트
-                if (this.elements.dataCount) {
-                    this.elements.dataCount.textContent = this.spectrumData.powers.length.toString();
-                }
-                
-                const minPower = Math.min(...this.spectrumData.powers);
-                const maxPower = Math.max(...this.spectrumData.powers);
-                
-                if (this.elements.dataRange) {
-                    this.elements.dataRange.textContent = `${minPower.toFixed(1)}~${maxPower.toFixed(1)}dBm`;
-                }
-                
-                console.log(`✅ 데이터 생성 완료: ${points}포인트, ${minPower.toFixed(1)}~${maxPower.toFixed(1)}dBm`);
-                this.logToTerminal(`📊 데이터: ${points}포인트, 범위: ${minPower.toFixed(1)}~${maxPower.toFixed(1)}dBm`);
-            }
-
-            drawSpectrumChart() {
-                console.log('=== 스펙트럼 차트 그리기 시작 ===');
-                
-                if (!this.spectrumCtx) {
-                    console.error('❌ 스펙트럼 컨텍스트가 없습니다!');
-                    return;
-                }
-                
-                if (this.spectrumData.powers.length === 0) {
-                    console.warn('⚠️ 데이터가 없어서 빈 차트를 그립니다');
-                    this.drawEmptyChart();
-                    return;
-                }
-                
-                const width = this.elements.spectrumChart.width;
-                const height = this.elements.spectrumChart.height;
-                
-                console.log(`차트 크기: ${width}×${height}, 데이터 포인트: ${this.spectrumData.powers.length}`);
-                
-                // 배경 클리어 및 그리기
-                this.spectrumCtx.clearRect(0, 0, width, height);
-                this.spectrumCtx.fillStyle = '#1a1a1a';
-                this.spectrumCtx.fillRect(0, 0, width, height);
-                
-                // 격자 그리기
-                this.drawGrid(width, height);
-                
-                // 데이터 범위 계산
-                const minPower = Math.min(...this.spectrumData.powers);
-                const maxPower = Math.max(...this.spectrumData.powers);
-                const powerRange = Math.max(maxPower - minPower, 5); // 최소 5dB 범위
-                
-                console.log(`파워 범위: ${minPower.toFixed(1)} ~ ${maxPower.toFixed(1)} dBm (범위: ${powerRange.toFixed(1)}dB)`);
-                
-                // 스펙트럼 라인 그리기
-                this.spectrumCtx.strokeStyle = '#00ff00';
-                this.spectrumCtx.lineWidth = 2;
-                this.spectrumCtx.beginPath();
-                
-                let validPoints = 0;
-                
-                for (let i = 0; i < this.spectrumData.powers.length; i++) {
-                    const x = (width * i) / Math.max(this.spectrumData.powers.length - 1, 1);
-                    const normalizedPower = (this.spectrumData.powers[i] - minPower) / powerRange;
-                    const y = height - (normalizedPower * height * 0.85) - height * 0.1; // 10% 여백
-                    
-                    if (i === 0) {
-                        this.spectrumCtx.moveTo(x, y);
-                    } else {
-                        this.spectrumCtx.lineTo(x, y);
-                    }
-                    validPoints++;
-                }
-                
-                this.spectrumCtx.stroke();
-                console.log(`✅ ${validPoints}개 포인트로 라인 그리기 완료`);
-                
-                // 피크 마커 그리기
-                this.drawPeakMarker(width, height, minPower, maxPower, powerRange);
-                
-                // 축 레이블 그리기
-                this.drawAxisLabels(width, height);
-                
-                // 상태 업데이트
-                if (this.elements.spectrumStatus) {
-                    this.elements.spectrumStatus.textContent = `${this.spectrumData.powers.length}개 포인트 표시됨`;
-                }
-                
-                console.log('=== 스펙트럼 차트 그리기 완료 ===');
-            }
-
-            drawGrid(width, height) {
-                this.spectrumCtx.strokeStyle = '#333';
-                this.spectrumCtx.lineWidth = 1;
-                
-                // 수직 격자선
-                for (let i = 0; i <= 10; i++) {
-                    const x = (width * i) / 10;
-                    this.spectrumCtx.beginPath();
-                    this.spectrumCtx.moveTo(x, 0);
-                    this.spectrumCtx.lineTo(x, height);
-                    this.spectrumCtx.stroke();
-                }
-                
-                // 수평 격자선
-                for (let i = 0; i <= 8; i++) {
-                    const y = (height * i) / 8;
-                    this.spectrumCtx.beginPath();
-                    this.spectrumCtx.moveTo(0, y);
-                    this.spectrumCtx.lineTo(width, y);
-                    this.spectrumCtx.stroke();
-                }
-            }
-
-            drawPeakMarker(width, height, minPower, maxPower, powerRange) {
-                // 피크 찾기
-                const maxIndex = this.spectrumData.powers.indexOf(maxPower);
-                const peakX = (width * maxIndex) / Math.max(this.spectrumData.powers.length - 1, 1);
-                const peakY = height - ((maxPower - minPower) / powerRange * height * 0.85) - height * 0.1;
-                
-                // 피크 마커
-                this.spectrumCtx.fillStyle = '#ff6600';
-                this.spectrumCtx.beginPath();
-                this.spectrumCtx.arc(peakX, peakY, 4, 0, 2 * Math.PI);
-                this.spectrumCtx.fill();
-                
-                // 피크 레이블
-                this.spectrumCtx.fillStyle = '#ffff00';
-                this.spectrumCtx.font = '10px Arial';
-                this.spectrumCtx.textAlign = 'center';
-                this.spectrumCtx.fillText('PEAK', peakX, peakY - 8);
-            }
-
-            drawAxisLabels(width, height) {
-                this.spectrumCtx.fillStyle = '#fff';
-                this.spectrumCtx.font = '12px Arial';
-                this.spectrumCtx.textAlign = 'right';
-                this.spectrumCtx.fillText('주파수 →', width - 10, height - 10);
-                
-                this.spectrumCtx.textAlign = 'left';
-                this.spectrumCtx.fillText('↑', 5, 15);
-                this.spectrumCtx.fillText('파워', 15, 15);
-                this.spectrumCtx.fillText('(dBm)', 15, 30);
-            }
-
-            updateMeasurements() {
-                console.log('📊 측정값 업데이트 중...');
-                
-                if (this.spectrumData.powers.length > 0) {
-                    const maxIndex = this.spectrumData.powers.indexOf(Math.max(...this.spectrumData.powers));
-                    const peakFreq = this.spectrumData.frequencies[maxIndex];
-                    const peakPower = this.spectrumData.powers[maxIndex];
-                    
-                    console.log(`Peak: ${(peakFreq/1e6).toFixed(3)} MHz, ${peakPower.toFixed(1)} dBm`);
-                    
-                    if (this.elements.peakFreq) {
-                        this.elements.peakFreq.textContent = `${(peakFreq / 1e6).toFixed(3)} MHz`;
-                    }
-                    if (this.elements.peakPower) {
-                        this.elements.peakPower.textContent = `${peakPower.toFixed(1)} dBm`;
-                    }
-                    if (this.elements.s11Value) {
-                        this.elements.s11Value.textContent = `${(-12 + Math.random() * 8).toFixed(1)} dB`;
-                    }
-                    if (this.elements.vswr) {
-                        this.elements.vswr.textContent = `${(1.1 + Math.random() * 0.4).toFixed(2)}`;
-                    }
-                    
-                    console.log('✅ 측정값 업데이트 완료');
-                } else {
-                    console.log('⚠️ 데이터가 없어서 측정값을 "-"로 설정');
-                    if (this.elements.peakFreq) this.elements.peakFreq.textContent = '-';
-                    if (this.elements.peakPower) this.elements.peakPower.textContent = '-';
-                    if (this.elements.s11Value) this.elements.s11Value.textContent = '-';
-                    if (this.elements.vswr) this.elements.vswr.textContent = '-';
-                }
-            }
-
-            // ===== 나머지 메서드들 =====
 
             updateDeviceConfig() {
                 const configs = {
-                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320, maxFreq: 5300 },
-                    'tinysa': { name: 'tinySA', width: 320, height: 240, maxFreq: 350 },
-                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240, maxFreq: 900 },
-                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320, maxFreq: 1500 }
+                    'tinysa-ultra': { name: 'tinySA Ultra', width: 480, height: 320, maxFreq: 5300, vid: 0x0483, pid: 0x5740 },
+                    'tinysa': { name: 'tinySA', width: 320, height: 240, maxFreq: 350, vid: 0x0483, pid: 0x5740 },
+                    'nanovna': { name: 'NanoVNA-H', width: 320, height: 240, maxFreq: 900, vid: 0x0483, pid: 0x5740 },
+                    'nanovna-h4': { name: 'NanoVNA-H4', width: 480, height: 320, maxFreq: 1500, vid: 0x0483, pid: 0x5740 }
                 };
 
                 const config = configs[this.deviceType];
@@ -945,8 +677,10 @@
                     this.elements.screenCanvas.height = config.height;
                     this.updateScreenSize();
                     
-                    this.logToTerminal(`장비 변경: ${config.name} (${config.width}×${config.height})`);
+                    this.logToTerminal(`장비 설정: ${config.name} (${config.width}×${config.height})`);
                 }
+                
+                return config;
             }
 
             updateScreenSize() {
@@ -956,23 +690,97 @@
             }
 
             async connect() {
-                console.log('연결 시작...');
+                console.log('장비 연결 시도...');
+                
+                if (!('serial' in navigator)) {
+                    this.logToTerminal('❌ WebSerial API가 지원되지 않습니다');
+                    return;
+                }
+                
+                if (this.elements.connectBtn) {
+                    this.elements.connectBtn.disabled = true;
+                }
+                
                 this.updateConnectionStatus('연결 중...');
                 this.logToTerminal('🔌 장비 연결 시도 중...');
 
-                setTimeout(() => {
+                try {
+                    const config = this.updateDeviceConfig();
+                    
+                    // 시리얼 포트 요청
+                    this.serialPort = await navigator.serial.requestPort({
+                        filters: [
+                            { usbVendorId: config.vid, usbProductId: config.pid }
+                        ]
+                    });
+
+                    // 포트 열기
+                    await this.serialPort.open({
+                        baudRate: 115200,
+                        dataBits: 8,
+                        stopBits: 1,
+                        parity: 'none',
+                        flowControl: 'none'
+                    });
+
+                    // Reader/Writer 설정
+                    this.reader = this.serialPort.readable.getReader();
+                    this.writer = this.serialPort.writable.getWriter();
+
                     this.isConnected = true;
-                    this.updateConnectionStatus('시뮬레이션 연결');
-                    this.logToTerminal('✅ 시뮬레이션 모드로 연결됨');
-                    this.startSimulation();
-                }, 1000);
+                    this.updateConnectionStatus('연결됨');
+                    this.logToTerminal('✅ 장비 연결 성공');
+                    
+                    // 데이터 수신 시작
+                    this.startDataCapture();
+                    
+                } catch (error) {
+                    console.error('연결 실패:', error);
+                    this.logToTerminal(`❌ 연결 실패: ${error.message}`);
+                    this.updateConnectionStatus('연결 실패');
+                    
+                    if (this.elements.connectBtn) {
+                        this.elements.connectBtn.disabled = false;
+                    }
+                }
             }
 
-            disconnect() {
+            async disconnect() {
+                console.log('연결 해제...');
+                
                 this.isCapturing = false;
                 this.isConnected = false;
+                
+                try {
+                    if (this.reader) {
+                        await this.reader.cancel();
+                        await this.reader.releaseLock();
+                        this.reader = null;
+                    }
+                    
+                    if (this.writer) {
+                        await this.writer.releaseLock();
+                        this.writer = null;
+                    }
+                    
+                    if (this.serialPort) {
+                        await this.serialPort.close();
+                        this.serialPort = null;
+                    }
+                } catch (error) {
+                    console.error('연결 해제 중 오류:', error);
+                }
+                
                 this.updateConnectionStatus('연결 안됨');
                 this.logToTerminal('🔌 연결 해제됨');
+                
+                // 화면 초기화
+                if (this.screenCtx) {
+                    this.screenCtx.fillStyle = '#000';
+                    this.screenCtx.fillRect(0, 0, this.elements.screenCanvas.width, this.elements.screenCanvas.height);
+                }
+                
+                this.drawEmptyChart();
             }
 
             updateConnectionStatus(status) {
@@ -992,32 +800,91 @@
                 // 버튼 상태 업데이트
                 if (this.elements.connectBtn) this.elements.connectBtn.disabled = this.isConnected;
                 if (this.elements.disconnectBtn) this.elements.disconnectBtn.disabled = !this.isConnected;
+                if (this.elements.pauseBtn) this.elements.pauseBtn.disabled = !this.isConnected;
+                if (this.elements.resumeBtn) this.elements.resumeBtn.disabled = !this.isConnected;
             }
 
-            startSimulation() {
+            async startDataCapture() {
+                console.log('데이터 캡처 시작...');
                 this.isCapturing = true;
-                this.generateTestData(); // 자동으로 테스트 데이터 생성
+                
+                try {
+                    while (this.isCapturing && this.reader) {
+                        const { value, done } = await this.reader.read();
+                        
+                        if (done) {
+                            console.log('데이터 스트림 종료');
+                            break;
+                        }
+                        
+                        if (value) {
+                            this.processReceivedData(value);
+                        }
+                    }
+                } catch (error) {
+                    console.error('데이터 수신 오류:', error);
+                    this.logToTerminal(`❌ 데이터 수신 오류: ${error.message}`);
+                }
             }
 
-            setFrequencies() {
+            processReceivedData(data) {
+                // 수신된 데이터 처리
+                const decoder = new TextDecoder();
+                const text = decoder.decode(data);
+                
+                console.log('수신 데이터:', text);
+                this.logToTerminal(`📥 수신: ${text.substring(0, 50)}...`);
+                
+                // 여기서 실제 tinySA 데이터 파싱 및 차트 업데이트
+                // this.parseSpectrumData(text);
+            }
+
+            async sendCommand(command = null) {
+                if (!this.isConnected || !this.writer) {
+                    this.logToTerminal('❌ 장비가 연결되지 않았습니다');
+                    return;
+                }
+                
+                const cmd = command || this.elements.commandInput?.value?.trim();
+                if (!cmd) return;
+                
+                try {
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(cmd + '\r\n');
+                    await this.writer.write(data);
+                    
+                    this.logToTerminal(`💻 전송: ${cmd}`);
+                    
+                    if (this.elements.commandInput) {
+                        this.elements.commandInput.value = '';
+                    }
+                } catch (error) {
+                    console.error('명령 전송 실패:', error);
+                    this.logToTerminal(`❌ 명령 전송 실패: ${error.message}`);
+                }
+            }
+
+            async setFrequencies() {
                 const start = this.elements.startFreq?.value || 100;
                 const stop = this.elements.stopFreq?.value || 1000;
                 const points = this.elements.points?.value || 101;
                 
                 this.logToTerminal(`📡 주파수 설정: ${start}-${stop}MHz, ${points}포인트`);
                 
-                // 새 설정으로 데이터 재생성
-                this.generateTestData();
+                // 실제 tinySA 명령어 전송
+                await this.sendCommand(`sweep start ${start}000000`);
+                await this.sendCommand(`sweep stop ${stop}000000`);
+                await this.sendCommand(`sweep points ${points}`);
             }
 
-            startScan() {
+            async startScan() {
                 this.logToTerminal('📊 스펙트럼 스캔 시작...');
-                this.generateTestData();
+                await this.sendCommand('scan');
             }
 
-            startSweep() {
+            async startSweep() {
                 this.logToTerminal('📈 S-parameter 측정 시작...');
-                this.generateTestData();
+                await this.sendCommand('sweep');
             }
 
             pauseCapture() {
@@ -1030,16 +897,19 @@
                 this.logToTerminal('▶️ 재개');
             }
 
-            calibrate() {
+            async calibrate() {
                 this.logToTerminal('🎯 캘리브레이션 실행...');
+                await this.sendCommand('cal');
             }
 
-            saveCalibration() {
+            async saveCalibration() {
                 this.logToTerminal('💾 캘리브레이션 저장...');
+                await this.sendCommand('save');
             }
 
-            loadCalibration() {
+            async loadCalibration() {
                 this.logToTerminal('📂 캘리브레이션 로드...');
+                await this.sendCommand('recall');
             }
 
             saveData() {
@@ -1050,7 +920,7 @@
 
             saveImage() {
                 this.logToTerminal('📸 스크린샷 저장...');
-                const canvas = this.elements.spectrumChart;
+                const canvas = this.elements.screenCanvas;
                 if (canvas) {
                     canvas.toBlob((blob) => {
                         const url = URL.createObjectURL(blob);
@@ -1072,54 +942,19 @@
                 this.downloadFile(csv, 'spectrum_data.csv', 'text/csv');
             }
 
-            systemReset() {
+            async systemReset() {
                 this.logToTerminal('🔄 시스템 리셋...');
-                this.spectrumData = { frequencies: [], powers: [] };
-                this.drawEmptyChart();
-                this.updateMeasurements();
+                await this.sendCommand('reset');
             }
 
-            checkBattery() {
+            async checkBattery() {
                 this.logToTerminal('🔋 배터리 체크...');
-                setTimeout(() => {
-                    this.logToTerminal('🔋 배터리: 3.8V (85%)');
-                }, 500);
+                await this.sendCommand('vbat');
             }
 
-            getDeviceInfo() {
+            async getDeviceInfo() {
                 this.logToTerminal('ℹ️ 장비 정보 조회...');
-                setTimeout(() => {
-                    this.logToTerminal('ℹ️ tinySA Ultra 시뮬레이터 v1.1');
-                    this.logToTerminal('ℹ️ 주파수 범위: 100kHz - 5.3GHz');
-                    this.logToTerminal('ℹ️ 해상도: 1kHz');
-                }, 500);
-            }
-
-            sendCommand() {
-                const command = this.elements.commandInput?.value?.trim();
-                if (command) {
-                    this.logToTerminal(`💻 명령: ${command}`);
-                    this.elements.commandInput.value = '';
-                    
-                    setTimeout(() => {
-                        switch (command.toLowerCase()) {
-                            case 'help':
-                                this.logToTerminal('📥 명령어: scan, sweep, cal, info, reset, test');
-                                break;
-                            case 'test':
-                                this.generateTestData();
-                                break;
-                            case 'scan':
-                                this.startScan();
-                                break;
-                            case 'reset':
-                                this.systemReset();
-                                break;
-                            default:
-                                this.logToTerminal(`📥 OK - "${command}" 실행됨`);
-                        }
-                    }, 300);
-                }
+                await this.sendCommand('info');
             }
 
             handleScreenClick(event) {
@@ -1130,6 +965,8 @@
                 const y = Math.floor((event.clientY - rect.top) * (this.elements.screenCanvas.height / rect.height));
                 
                 this.logToTerminal(`👆 터치: (${x}, ${y})`);
+                // 실제 터치 명령 전송
+                this.sendCommand(`touch ${x} ${y}`);
             }
 
             downloadFile(content, filename, contentType) {
@@ -1164,13 +1001,13 @@
 
         // 애플리케이션 시작
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('=== DOM 로드 완료 ===');
+            console.log('DOM 로드 완료');
             
             try {
                 window.controller = new TinySAController();
-                console.log('=== 애플리케이션 시작 성공 ===');
+                console.log('✅ 애플리케이션 시작 성공');
             } catch (error) {
-                console.error('=== 애플리케이션 시작 실패 ===', error);
+                console.error('❌ 애플리케이션 시작 실패:', error);
             }
         });
     </script>
