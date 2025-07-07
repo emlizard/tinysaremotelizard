@@ -441,6 +441,33 @@
         </div>
     </div>
 
+    <!-- Chrome 확장 프로그램 충돌 알림 -->
+    <div id="extensionWarning" style="
+        background: linear-gradient(45deg, #ff9800, #f57c00);
+        color: white;
+        padding: 0.5rem 1rem;
+        text-align: center;
+        font-size: 0.9rem;
+        display: none;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    ">
+        ⚠️ Chrome 확장 프로그램 충돌이 감지되었습니다. 
+        <button onclick="this.parentElement.style.display='none'" style="
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            margin: 0 0.5rem;
+            cursor: pointer;
+        ">닫기</button>
+        <a href="#" onclick="showExtensionHelp()" style="
+            color: white;
+            text-decoration: underline;
+            margin-left: 0.5rem;
+        ">해결방법 보기</a>
+    </div>
+
     <div class="main-container">
         <!-- 왼쪽 제어 패널 -->
         <div class="left-panel">
@@ -1043,21 +1070,27 @@
             }
 
             checkWebSerialSupport() {
-                if ('serial' in navigator) {
-                    if (window.location.protocol === 'https:' || 
-                        window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1') {
-                        this.simulationMode = false;
-                        this.logToTerminal('✅ WebSerial API 지원됨 - 실제 장비 연결 가능');
+                try {
+                    if ('serial' in navigator) {
+                        if (window.location.protocol === 'https:' || 
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1') {
+                            this.simulationMode = false;
+                            this.logToTerminal('✅ WebSerial API 지원됨 - 실제 장비 연결 가능');
+                        } else {
+                            this.simulationMode = true;
+                            this.logToTerminal('⚠️  WebSerial API 지원되지만 HTTP 환경으로 제한됨');
+                            this.logToTerminal('🔒 HTTPS 환경에서 실제 장비 연결 가능');
+                        }
                     } else {
                         this.simulationMode = true;
-                        this.logToTerminal('⚠️  WebSerial API 지원되지만 HTTP 환경으로 제한됨');
-                        this.logToTerminal('🔒 HTTPS 환경에서 실제 장비 연결 가능');
+                        this.logToTerminal('❌ WebSerial API 미지원 - 시뮬레이션 모드로 동작');
+                        this.logToTerminal('💡 Chrome/Edge 브라우저와 HTTPS 환경에서 사용하세요');
                     }
-                } else {
+                } catch (error) {
+                    console.warn('WebSerial 지원 확인 중 오류:', error);
                     this.simulationMode = true;
-                    this.logToTerminal('❌ WebSerial API 미지원 - 시뮬레이션 모드로 동작');
-                    this.logToTerminal('💡 Chrome/Edge 브라우저와 HTTPS 환경에서 사용하세요');
+                    this.logToTerminal('⚠️  WebSerial 확인 실패 - 시뮬레이션 모드로 전환');
                 }
                 
                 if (this.simulationMode) {
@@ -1090,13 +1123,24 @@
 
                 if (!this.simulationMode) {
                     try {
-                        this.serialPort = await navigator.serial.requestPort({
-                            filters: [{ 
-                                usbVendorId: deviceConfig.vendorId, 
-                                usbProductId: deviceConfig.productId 
-                            }]
-                        });
+                        // Chrome 확장 프로그램 충돌 방지를 위한 지연
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        
+                        this.logToTerminal('📋 장비 선택 다이얼로그 표시...');
+                        
+                        this.serialPort = await Promise.race([
+                            navigator.serial.requestPort({
+                                filters: [{ 
+                                    usbVendorId: deviceConfig.vendorId, 
+                                    usbProductId: deviceConfig.productId 
+                                }]
+                            }),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('포트 선택 타임아웃')), 30000)
+                            )
+                        ]);
 
+                        this.logToTerminal('🔗 시리얼 포트 열기...');
                         await this.serialPort.open({
                             baudRate: deviceConfig.baudRate,
                             dataBits: 8,
@@ -1105,7 +1149,13 @@
                         });
 
                         this.logToTerminal('✅ 시리얼 포트 연결 성공!');
-                        await this.verifyDeviceType();
+                        
+                        // 연결 확인을 위한 간단한 테스트
+                        try {
+                            await this.verifyDeviceType();
+                        } catch (verifyError) {
+                            this.logToTerminal(`⚠️  장비 확인 실패 (계속 진행): ${verifyError.message}`);
+                        }
                         
                         this.isConnected = true;
                         this.logToTerminal('🎉 장비 연결 및 초기화 완료!');
@@ -1113,6 +1163,19 @@
                         
                     } catch (error) {
                         this.logToTerminal(`❌ 연결 실패: ${error.message}`);
+                        
+                        // 특정 오류에 대한 해결책 제시
+                        if (error.message.includes('message port closed')) {
+                            this.logToTerminal('💡 Chrome 확장 프로그램과의 충돌입니다.');
+                            this.logToTerminal('💡 해결방법: 시크릿 모드에서 시도하거나 확장 프로그램을 비활성화하세요.');
+                        } else if (error.name === 'NotFoundError') {
+                            this.logToTerminal('💡 해결방법: 장비가 USB에 연결되어 있는지 확인하세요');
+                        } else if (error.name === 'SecurityError') {
+                            this.logToTerminal('💡 해결방법: HTTPS 환경에서 접속하세요');
+                        } else if (error.name === 'NotSupportedError') {
+                            this.logToTerminal('💡 해결방법: Chrome 또는 Edge 브라우저를 사용하세요');
+                        }
+                        
                         this.elements.connectionStatus.textContent = `연결 실패: ${error.message}`;
                         this.elements.connectBtn.disabled = false;
                         return;
@@ -1197,9 +1260,22 @@
             async sendDeviceCommand(command) {
                 if (!this.simulationMode && this.serialPort) {
                     try {
+                        // Chrome 확장 프로그램 충돌 방지
+                        if (!this.serialPort.writable || !this.serialPort.readable) {
+                            throw new Error('시리얼 포트가 사용 불가능한 상태입니다');
+                        }
+                        
                         const encoder = new TextEncoder();
                         const writer = this.serialPort.writable.getWriter();
-                        await writer.write(encoder.encode(command + '\r\n'));
+                        
+                        // 쓰기 작업을 타임아웃과 함께 실행
+                        await Promise.race([
+                            writer.write(encoder.encode(command + '\r\n')),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('명령 전송 타임아웃')), 5000)
+                            )
+                        ]);
+                        
                         writer.releaseLock();
                         
                         this.logToTerminal(`📤 명령: ${command}`);
@@ -1207,26 +1283,47 @@
                         
                         // 응답 읽기
                         const reader = this.serialPort.readable.getReader();
-                        const timeout = setTimeout(() => reader.cancel(), 2000);
                         
                         try {
-                            const { value } = await reader.read();
-                            clearTimeout(timeout);
+                            const response = await Promise.race([
+                                reader.read(),
+                                new Promise((_, reject) => 
+                                    setTimeout(() => reject(new Error('응답 읽기 타임아웃')), 3000)
+                                )
+                            ]);
                             
-                            if (value) {
+                            if (response.value) {
                                 const decoder = new TextDecoder();
-                                const response = decoder.decode(value);
-                                this.logToTerminal(`📥 응답: ${response.trim()}`);
-                                return response;
+                                const responseText = decoder.decode(response.value);
+                                this.logToTerminal(`📥 응답: ${responseText.trim()}`);
+                                return responseText;
                             }
                         } catch (readError) {
+                            if (readError.message.includes('message port closed')) {
+                                this.logToTerminal('⚠️  Chrome 확장 프로그램 충돌 감지');
+                                throw new Error('확장 프로그램 충돌로 인한 연결 실패');
+                            }
                             this.logToTerminal(`📥 읽기 실패: ${readError.message}`);
+                        } finally {
+                            try {
+                                reader.releaseLock();
+                            } catch (e) {
+                                // reader가 이미 해제된 경우 무시
+                            }
                         }
                         
-                        reader.releaseLock();
-                        
                     } catch (error) {
+                        if (error.message.includes('message port closed')) {
+                            this.logToTerminal('🔄 Chrome 확장 프로그램 충돌 - 시뮬레이션 모드로 전환');
+                            showExtensionWarning(); // 알림 표시
+                            this.simulationMode = true;
+                            this.disconnect();
+                            this.simulateDeviceResponse(command);
+                            return;
+                        }
+                        
                         this.logToTerminal(`❌ 명령 실패: ${error.message}`);
+                        throw error;
                     }
                 } else {
                     // 시뮬레이션 응답
