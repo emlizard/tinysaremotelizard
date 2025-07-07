@@ -367,6 +367,7 @@
                 <button id="diagnosisBtn">시스템 환경 체크</button>
                 <button id="listPortsBtn">사용가능 포트 확인</button>
                 <button id="testConnectionBtn">연결 테스트</button>
+                <button id="httpsGuideBtn">HTTPS 설정 가이드</button>
             </div>
 
             <div class="hotkeys">
@@ -400,8 +401,6 @@
             constructor() {
                 this.isConnected = false;
                 this.serialPort = null;
-                this.canvas = document.getElementById('screenCanvas');
-                this.ctx = this.canvas.getContext('2d');
                 this.deviceType = 'nanovna';
                 this.zoom = 2;
                 this.isCapturing = false;
@@ -414,15 +413,53 @@
                 this.simulationMode = !('serial' in navigator);
                 this.availableDevices = [];
                 
-                this.initializeElements();
-                this.setupEventListeners();
-                this.setupKeyboardShortcuts();
-                this.updateDeviceResolution();
+                // DOM 요소들이 준비될 때까지 대기
+                this.initializeWhenReady();
+            }
+
+            async initializeWhenReady() {
+                // DOM 요소들이 모두 로드될 때까지 대기
+                let retries = 0;
+                while (retries < 10) {
+                    try {
+                        this.canvas = document.getElementById('screenCanvas');
+                        if (!this.canvas) {
+                            retries++;
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            continue;
+                        }
+                        
+                        this.ctx = this.canvas.getContext('2d');
+                        this.initializeElements();
+                        
+                        // 모든 요소가 정상적으로 로드되었는지 확인
+                        if (!this.elements.terminal) {
+                            console.warn('터미널 요소를 찾을 수 없습니다. 콘솔에만 로그 출력됩니다.');
+                        }
+                        
+                        this.setupEventListeners();
+                        this.setupKeyboardShortcuts();
+                        this.updateDeviceResolution();
+                        this.checkWebSerialSupport();
+                        
+                        console.log('✅ 애플리케이션 초기화 완료');
+                        
+                        if (this.simulationMode) {
+                            this.startSimulation();
+                        } else {
+                            this.startDeviceMonitoring();
+                        }
+                        
+                        break;
+                    } catch (error) {
+                        console.error('초기화 시도 실패:', error);
+                        retries++;
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
                 
-                if (this.simulationMode) {
-                    this.startSimulation();
-                } else {
-                    this.startDeviceMonitoring();
+                if (retries >= 10) {
+                    console.error('초기화 실패: DOM 요소를 찾을 수 없습니다');
                 }
             }
 
@@ -484,69 +521,79 @@
             }
 
             initializeElements() {
-                this.elements = {
-                    deviceType: document.getElementById('deviceType'),
-                    statusDot: document.getElementById('statusDot'),
-                    connectionStatus: document.getElementById('connectionStatus'),
-                    deviceScreen: document.getElementById('deviceScreen'),
-                    screenOverlay: document.getElementById('screenOverlay'),
-                    fpsCounter: document.getElementById('fpsCounter'),
-                    deviceInfo: document.getElementById('deviceInfo'),
-                    resolution: document.getElementById('resolution'),
-                    fpsValue: document.getElementById('fpsValue'),
-                    compression: document.getElementById('compression'),
-                    battery: document.getElementById('battery'),
-                    connectBtn: document.getElementById('connectBtn'),
-                    disconnectBtn: document.getElementById('disconnectBtn'),
-                    pauseBtn: document.getElementById('pauseBtn'),
-                    resumeBtn: document.getElementById('resumeBtn'),
-                    zoomIn: document.getElementById('zoomIn'),
-                    zoomOut: document.getElementById('zoomOut'),
-                    screenshot: document.getElementById('screenshot'),
-                    invertBtn: document.getElementById('invertBtn'),
-                    fitScreenBtn: document.getElementById('fitScreenBtn'),
-                    resetZoomBtn: document.getElementById('resetZoomBtn'),
-                    singleCaptureBtn: document.getElementById('singleCaptureBtn'),
-                    continuousCaptureBtn: document.getElementById('continuousCaptureBtn'),
-                    saveScreenshotBtn: document.getElementById('saveScreenshotBtn'),
-                    diagnosisBtn: document.getElementById('diagnosisBtn'),
-                    listPortsBtn: document.getElementById('listPortsBtn'),
-                    testConnectionBtn: document.getElementById('testConnectionBtn'),
-                    terminal: document.getElementById('terminal')
-                };
+                const elementIds = [
+                    'deviceType', 'statusDot', 'connectionStatus', 'deviceScreen', 'screenOverlay',
+                    'fpsCounter', 'deviceInfo', 'resolution', 'fpsValue', 'compression', 'battery',
+                    'connectBtn', 'disconnectBtn', 'pauseBtn', 'resumeBtn', 'zoomIn', 'zoomOut',
+                    'screenshot', 'invertBtn', 'fitScreenBtn', 'resetZoomBtn', 'singleCaptureBtn',
+                    'continuousCaptureBtn', 'saveScreenshotBtn', 'diagnosisBtn', 'listPortsBtn',
+                    'testConnectionBtn', 'terminal'
+                ];
+                
+                this.elements = {};
+                const missingElements = [];
+                
+                elementIds.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        this.elements[id] = element;
+                    } else {
+                        missingElements.push(id);
+                        console.warn(`요소를 찾을 수 없습니다: ${id}`);
+                    }
+                });
+                
+                if (missingElements.length > 0) {
+                    console.warn('누락된 요소들:', missingElements);
+                }
+                
+                console.log(`초기화된 요소: ${Object.keys(this.elements).length}/${elementIds.length}`);
             }
 
             setupEventListeners() {
-                this.elements.deviceType.addEventListener('change', (e) => {
+                // 안전한 이벤트 리스너 추가 함수
+                const addSafeListener = (elementId, event, handler) => {
+                    const element = this.elements[elementId];
+                    if (element) {
+                        element.addEventListener(event, handler);
+                    } else {
+                        console.warn(`이벤트 리스너 추가 실패: ${elementId} 요소가 없습니다`);
+                    }
+                };
+
+                addSafeListener('deviceType', 'change', (e) => {
                     this.deviceType = e.target.value;
                     this.updateDeviceResolution();
                 });
 
-                this.elements.connectBtn.addEventListener('click', () => this.connect());
-                this.elements.disconnectBtn.addEventListener('click', () => this.disconnect());
-                this.elements.pauseBtn.addEventListener('click', () => this.pauseCapture());
-                this.elements.resumeBtn.addEventListener('click', () => this.resumeCapture());
+                addSafeListener('connectBtn', 'click', () => this.connect());
+                addSafeListener('disconnectBtn', 'click', () => this.disconnect());
+                addSafeListener('pauseBtn', 'click', () => this.pauseCapture());
+                addSafeListener('resumeBtn', 'click', () => this.resumeCapture());
 
-                this.elements.zoomIn.addEventListener('click', () => this.zoomIn());
-                this.elements.zoomOut.addEventListener('click', () => this.zoomOut());
-                this.elements.screenshot.addEventListener('click', () => this.takeScreenshot());
+                addSafeListener('zoomIn', 'click', () => this.zoomIn());
+                addSafeListener('zoomOut', 'click', () => this.zoomOut());
+                addSafeListener('screenshot', 'click', () => this.takeScreenshot());
 
-                this.elements.invertBtn.addEventListener('click', () => this.toggleInvert());
-                this.elements.fitScreenBtn.addEventListener('click', () => this.fitToScreen());
-                this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
+                addSafeListener('invertBtn', 'click', () => this.toggleInvert());
+                addSafeListener('fitScreenBtn', 'click', () => this.fitToScreen());
+                addSafeListener('resetZoomBtn', 'click', () => this.resetZoom());
 
-                this.elements.singleCaptureBtn.addEventListener('click', () => this.singleCapture());
-                this.elements.continuousCaptureBtn.addEventListener('click', () => this.toggleContinuousCapture());
-                this.elements.saveScreenshotBtn.addEventListener('click', () => this.saveScreenshot());
+                addSafeListener('singleCaptureBtn', 'click', () => this.singleCapture());
+                addSafeListener('continuousCaptureBtn', 'click', () => this.toggleContinuousCapture());
+                addSafeListener('saveScreenshotBtn', 'click', () => this.saveScreenshot());
 
                 // 진단 기능
-                this.elements.diagnosisBtn.addEventListener('click', () => this.runDiagnostics());
-                this.elements.listPortsBtn.addEventListener('click', () => this.listAvailablePorts());
-                this.elements.testConnectionBtn.addEventListener('click', () => this.testConnection());
+                addSafeListener('diagnosisBtn', 'click', () => this.runDiagnostics());
+                addSafeListener('listPortsBtn', 'click', () => this.listAvailablePorts());
+                addSafeListener('testConnectionBtn', 'click', () => this.testConnection());
+                addSafeListener('httpsGuideBtn', 'click', () => this.showHttpsGuide());
 
                 // 화면 클릭으로 장비 터치 시뮬레이션
-                this.canvas.addEventListener('click', (e) => this.handleScreenClick(e));
-                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                if (this.canvas) {
+                    this.canvas.addEventListener('click', (e) => this.handleScreenClick(e));
+                    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                }
             }
 
             setupKeyboardShortcuts() {
@@ -800,7 +847,23 @@
             }
 
             async startRealCapture() {
-                if (!this.serialPort || !this.isConnected) return;
+                // 안전성 체크
+                if (!this.serialPort) {
+                    this.logToTerminal('❌ 시리얼 포트가 없습니다. 시뮬레이션 모드로 전환합니다.');
+                    this.startSimulation();
+                    return;
+                }
+                
+                if (!this.isConnected) {
+                    this.logToTerminal('❌ 장비가 연결되지 않았습니다.');
+                    return;
+                }
+
+                if (this.simulationMode) {
+                    this.logToTerminal('⚠️  시뮬레이션 모드에서는 실제 캡처를 건너뜁니다.');
+                    this.startSimulation();
+                    return;
+                }
 
                 this.isCapturing = true;
                 this.logToTerminal('🎬 실시간 화면 캡처 시작...');
@@ -808,10 +871,16 @@
                 const encoder = new TextEncoder();
                 const decoder = new TextDecoder();
 
-                while (this.isCapturing && this.isConnected) {
+                while (this.isCapturing && this.isConnected && this.serialPort) {
                     try {
                         if (!this.isPaused) {
                             this.logToTerminal('📸 화면 캡처 중...');
+                            
+                            // serialPort 상태 재확인
+                            if (!this.serialPort || !this.serialPort.writable) {
+                                this.logToTerminal('❌ 시리얼 포트가 닫혀있습니다. 캡처를 중단합니다.');
+                                break;
+                            }
                             
                             // 화면 일시정지 명령
                             const writer1 = this.serialPort.writable.getWriter();
@@ -820,13 +889,25 @@
                             await this.delay(100);
                             
                             // 화면 캡처 명령 (RLE 압축 시도)
+                            if (!this.serialPort || !this.serialPort.writable) {
+                                this.logToTerminal('❌ 포트가 닫혔습니다.');
+                                break;
+                            }
+                            
                             const writer2 = this.serialPort.writable.getWriter();
                             await writer2.write(encoder.encode('capture rle\r\n'));
                             writer2.releaseLock();
                             
                             // 응답 읽기
+                            if (!this.serialPort || !this.serialPort.readable) {
+                                this.logToTerminal('❌ 포트 읽기 불가능');
+                                break;
+                            }
+                            
                             const reader = this.serialPort.readable.getReader();
-                            const timeout = setTimeout(() => reader.cancel(), 3000);
+                            const timeout = setTimeout(() => {
+                                if (reader) reader.cancel();
+                            }, 3000);
                             
                             try {
                                 const { value } = await reader.read();
@@ -839,26 +920,30 @@
                                     this.logToTerminal('⚠️  화면 데이터 없음 - 일반 캡처 시도');
                                     
                                     // RLE 실패시 일반 캡처 시도
-                                    const writer3 = this.serialPort.writable.getWriter();
-                                    await writer3.write(encoder.encode('capture\r\n'));
-                                    writer3.releaseLock();
-                                    
-                                    const { value: normalData } = await reader.read();
-                                    if (normalData && normalData.length > 0) {
-                                        this.logToTerminal(`📥 일반 화면 데이터 수신: ${normalData.length} bytes`);
-                                        await this.parseScreenData(normalData);
+                                    if (this.serialPort && this.serialPort.writable) {
+                                        const writer3 = this.serialPort.writable.getWriter();
+                                        await writer3.write(encoder.encode('capture\r\n'));
+                                        writer3.releaseLock();
+                                        
+                                        const { value: normalData } = await reader.read();
+                                        if (normalData && normalData.length > 0) {
+                                            this.logToTerminal(`📥 일반 화면 데이터 수신: ${normalData.length} bytes`);
+                                            await this.parseScreenData(normalData);
+                                        }
                                     }
                                 }
                             } catch (readError) {
                                 this.logToTerminal(`❌ 데이터 읽기 실패: ${readError.message}`);
                             }
                             
-                            reader.releaseLock();
+                            if (reader) reader.releaseLock();
                             
                             // 화면 업데이트 재개
-                            const writer4 = this.serialPort.writable.getWriter();
-                            await writer4.write(encoder.encode('resume\r\n'));
-                            writer4.releaseLock();
+                            if (this.serialPort && this.serialPort.writable) {
+                                const writer4 = this.serialPort.writable.getWriter();
+                                await writer4.write(encoder.encode('resume\r\n'));
+                                writer4.releaseLock();
+                            }
                         }
 
                         this.updateFPS();
@@ -866,11 +951,21 @@
                         
                     } catch (error) {
                         this.logToTerminal(`❌ 캡처 오류: ${error.message}`);
+                        
+                        // 심각한 오류 발생시 시뮬레이션으로 전환
+                        if (error.message.includes('null') || error.message.includes('undefined')) {
+                            this.logToTerminal('🔄 시뮬레이션 모드로 전환합니다...');
+                            this.simulationMode = true;
+                            this.serialPort = null;
+                            this.startSimulation();
+                            break;
+                        }
+                        
                         await this.delay(1000); // 오류시 1초 대기
                     }
                 }
                 
-                this.logToTerminal('🛑 화면 캡처 중지됨');
+                this.logToTerminal('🛑 실제 화면 캡처 중지됨');
             }
 
             async parseScreenData(data) {
@@ -1252,18 +1347,20 @@
                 // 브라우저 정보
                 this.logToTerminal(`🌐 브라우저: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
                 this.logToTerminal(`🔒 프로토콜: ${window.location.protocol}`);
+                this.logToTerminal(`📍 주소: ${window.location.href}`);
                 
                 // WebSerial 지원 확인
                 if ('serial' in navigator) {
                     this.logToTerminal('✅ WebSerial API 지원됨');
                     
-                    // Permissions API 확인
+                    // Permissions API 확인 (안전하게)
                     if ('permissions' in navigator) {
                         try {
+                            // 일부 브라우저에서는 'serial' 권한 확인이 지원되지 않을 수 있음
                             const permission = await navigator.permissions.query({ name: 'serial' });
                             this.logToTerminal(`🔐 Serial 권한 상태: ${permission.state}`);
                         } catch (error) {
-                            this.logToTerminal(`⚠️  권한 확인 실패: ${error.message}`);
+                            this.logToTerminal(`⚠️  Serial 권한 확인 미지원 (브라우저 제한)`);
                         }
                     }
                 } else {
@@ -1271,15 +1368,29 @@
                     this.logToTerminal('💡 해결방법: Chrome 89+ 또는 Edge 89+ 사용');
                 }
                 
-                // HTTPS 확인
+                // HTTPS 확인 및 해결방법 제시
                 if (window.location.protocol === 'https:') {
                     this.logToTerminal('✅ HTTPS 환경 (WebSerial 사용 가능)');
+                } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    this.logToTerminal('⚠️  localhost HTTP 환경');
+                    this.logToTerminal('💡 localhost에서는 WebSerial이 제한적으로 작동할 수 있습니다');
+                    this.logToTerminal('💡 권장: https://localhost 또는 온라인 HTTPS 환경 사용');
                 } else {
                     this.logToTerminal('❌ HTTP 환경 (WebSerial 사용 불가)');
-                    this.logToTerminal('💡 해결방법: https:// 로 접속하거나 localhost 사용');
+                    this.logToTerminal('💡 해결방법:');
+                    this.logToTerminal('   1. 주소창에서 http를 https로 변경');
+                    this.logToTerminal('   2. 또는 localhost 환경에서 테스트');
+                    this.logToTerminal('   3. 또는 GitHub Pages 등 HTTPS 호스팅 사용');
                 }
                 
+                // 추가 환경 정보
+                this.logToTerminal(`🖥️  User Agent: ${navigator.userAgent}`);
+                this.logToTerminal(`🌍 언어: ${navigator.language}`);
+                this.logToTerminal(`📱 플랫폼: ${navigator.platform}`);
+                
                 this.logToTerminal('✅ 시스템 진단 완료');
+                this.logToTerminal('');
+                this.logToTerminal('🚀 HTTPS 환경에서 접속하면 실제 장비 연결이 가능합니다!');
             }
 
             async listAvailablePorts() {
@@ -1417,6 +1528,38 @@
                 }
             }
 
+            showHttpsGuide() {
+                this.logToTerminal('📖 HTTPS 설정 가이드');
+                this.logToTerminal('');
+                this.logToTerminal('🔒 WebSerial API는 보안상 HTTPS 환경에서만 작동합니다.');
+                this.logToTerminal('');
+                this.logToTerminal('📋 해결방법:');
+                this.logToTerminal('');
+                this.logToTerminal('1️⃣  가장 간단한 방법:');
+                this.logToTerminal('   - 주소창에서 "http://"를 "https://"로 변경');
+                this.logToTerminal('   - 예: https://example.com/tinysa_remote.html');
+                this.logToTerminal('');
+                this.logToTerminal('2️⃣  로컬 HTTPS 서버 사용:');
+                this.logToTerminal('   - Python 3.7+: python -m http.server --bind localhost 8443');
+                this.logToTerminal('   - 또는 Node.js의 http-server 사용');
+                this.logToTerminal('   - 브라우저에서 https://localhost:8443 접속');
+                this.logToTerminal('');
+                this.logToTerminal('3️⃣  무료 HTTPS 호스팅:');
+                this.logToTerminal('   - GitHub Pages (github.io)');
+                this.logToTerminal('   - Netlify, Vercel 등');
+                this.logToTerminal('   - CodePen, JSFiddle (제한적)');
+                this.logToTerminal('');
+                this.logToTerminal('4️⃣  로컬 개발 환경:');
+                this.logToTerminal('   - VS Code Live Server 확장 + HTTPS 설정');
+                this.logToTerminal('   - Chrome --allow-running-insecure-content 플래그 (비추천)');
+                this.logToTerminal('');
+                this.logToTerminal('🎯 권장사항:');
+                this.logToTerminal('   현재 파일을 GitHub에 업로드하고 GitHub Pages로 호스팅하면');
+                this.logToTerminal('   https://yourusername.github.io/repo-name/ 으로 접속 가능');
+                this.logToTerminal('');
+                this.logToTerminal('💡 현재는 시뮬레이션 모드로 UI 테스트가 가능합니다!');
+            }
+
             updateFPS() {
                 this.frameCount++;
                 const now = Date.now();
@@ -1434,6 +1577,7 @@
 
         // 애플리케이션 시작
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM 로드 완료 - tinySA 리모트 컨트롤러 시작');
             window.controller = new NanoVNARemoteController();
         });
     </script>
