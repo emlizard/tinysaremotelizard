@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoVNA/tinySA 리모트 미러링</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23, #1a1a3a);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .device-selector {
+            padding: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f44336;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #4caf50;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .screen-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .device-screen {
+            background: #000;
+            border: 3px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            position: relative;
+            cursor: crosshair;
+            transition: transform 0.3s ease;
+        }
+
+        .device-screen canvas {
+            display: block;
+            border-radius: 7px;
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 1.2rem;
+            border-radius: 7px;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .control-panel {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section h3 {
+            color: #64b5f6;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #1976d2, #1565c0);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.4);
+        }
+
+        button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .fps-counter {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .hotkeys {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .hotkeys h4 {
+            color: #64b5f6;
+            margin-bottom: 0.5rem;
+        }
+
+        .hotkey {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .capture-info {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .device-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .value {
+            color: #64b5f6;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .control-panel {
+                width: 100%;
+                height: 200px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📡 NanoVNA/tinySA 리모트 미러링</h1>
+        <div class="controls">
+            <select class="device-selector" id="deviceType">
+                <option value="nanovna">NanoVNA-H</option>
+                <option value="nanovna-h4">NanoVNA-H4</option>
+                <option value="tinysa">tinySA</option>
+                <option value="tinysa-ultra">tinySA Ultra</option>
+                <option value="tinypfa">tinyPFA</option>
+            </select>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="connectionStatus">연결 안됨</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="screen-area">
+            <div class="device-screen" id="deviceScreen">
+                <canvas id="screenCanvas" width="320" height="240"></canvas>
+                <div class="screen-overlay" id="screenOverlay">
+                    <div>🔌 장비를 연결하세요</div>
+                    <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
+                        WebSerial 지원 브라우저에서 실제 장비 연결 가능
+                    </div>
+                </div>
+            </div>
+            
+            <div class="fps-counter" id="fpsCounter">FPS: 0</div>
+            
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoomIn" title="확대 (+)">+</button>
+                <button class="zoom-btn" id="zoomOut" title="축소 (-)">-</button>
+                <button class="zoom-btn" id="screenshot" title="스크린샷 (S)">📷</button>
+            </div>
+
+            <div class="capture-info">
+                화면을 클릭하여 장비 조작 | 키보드: +/- 줌, S 스크린샷, ESC 종료
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="section">
+                <h3>🔌 장비 연결</h3>
+                <button id="connectBtn">장비 연결</button>
+                <button id="disconnectBtn" disabled>연결 해제</button>
+                <button id="pauseBtn" disabled>화면 일시정지</button>
+                <button id="resumeBtn" disabled>화면 재개</button>
+            </div>
+
+            <div class="device-info" id="deviceInfo" style="display: none;">
+                <h4 style="color: #64b5f6; margin-bottom: 0.5rem;">장비 정보</h4>
+                <div class="info-row">
+                    <span>해상도:</span>
+                    <span class="value" id="resolution">320×240</span>
+                </div>
+                <div class="info-row">
+                    <span>FPS:</span>
+                    <span class="value" id="fpsValue">0</span>
+                </div>
+                <div class="info-row">
+                    <span>압축:</span>
+                    <span class="value" id="compression">RLE</span>
+                </div>
+                <div class="info-row">
+                    <span>배터리:</span>
+                    <span class="value" id="battery">-</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>⚙️ 화면 설정</h3>
+                <button id="invertBtn">색상 반전</button>
+                <button id="fitScreenBtn">화면 맞춤</button>
+                <button id="resetZoomBtn">줌 리셋</button>
+            </div>
+
+            <div class="section">
+                <h3>📸 캡처</h3>
+                <button id="singleCaptureBtn">단일 캡처</button>
+                <button id="continuousCaptureBtn">연속 캡처 시작</button>
+                <button id="saveScreenshotBtn">스크린샷 저장</button>
+            </div>
+
+            <div class="section">
+                <h3>🔧 시스템 진단</h3>
+                <button id="diagnosisBtn">시스템 환경 체크</button>
+                <button id="listPortsBtn">사용가능 포트 확인</button>
+                <button id="testConnectionBtn">연결 테스트</button>
+            </div>
+
+            <div class="hotkeys">
+                <h4>🎮 단축키</h4>
+                <div class="hotkey">
+                    <span>확대</span>
+                    <span class="key">+</span>
+                </div>
+                <div class="hotkey">
+                    <span>축소</span>
+                    <span class="key">-</span>
+                </div>
+                <div class="hotkey">
+                    <span>스크린샷</span>
+                    <span class="key">S</span>
+                </div>
+                <div class="hotkey">
+                    <span>종료</span>
+                    <span class="key">ESC</span>
+                </div>
+                <div class="hotkey">
+                    <span>일시정지</span>
+                    <span class="key">SPACE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NanoVNARemoteController {
+            constructor() {
+                this.isConnected = false;
+                this.serialPort = null;
+                this.canvas = document.getElementById('screenCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.deviceType = 'nanovna';
+                this.zoom = 2;
+                this.isCapturing = false;
+                this.isPaused = false;
+                this.invertColors = false;
+                this.fps = 0;
+                this.frameCount = 0;
+                this.lastFpsUpdate = Date.now();
+                this.screenData = null;
+                this.simulationMode = !('serial' in navigator);
+                this.availableDevices = [];
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupKeyboardShortcuts();
+                this.updateDeviceResolution();
+                
+                if (this.simulationMode) {
+                    this.startSimulation();
+                } else {
+                    this.startDeviceMonitoring();
+                }
+            }
+
+            async startDeviceMonitoring() {
+                // 페이지 로드 시 연결된 장비 확인
+                await this.checkAvailableDevices();
+                
+                // USB 장비 연결/해제 감지
+                if ('serial' in navigator) {
+                    navigator.serial.addEventListener('connect', (event) => {
+                        console.log('장비 연결됨:', event.port);
+                        this.checkAvailableDevices();
+                    });
+                    
+                    navigator.serial.addEventListener('disconnect', (event) => {
+                        console.log('장비 연결 해제됨:', event.port);
+                        this.checkAvailableDevices();
+                        if (event.port === this.serialPort) {
+                            this.disconnect();
+                        }
+                    });
+                }
+            }
+
+            async checkAvailableDevices() {
+                if (this.simulationMode) return;
+                
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    this.availableDevices = [];
+                    
+                    for (const port of ports) {
+                        const info = port.getInfo();
+                        if (info.usbVendorId === 0x0483 && info.usbProductId === 0x5740) {
+                            this.availableDevices.push({
+                                port: port,
+                                vendorId: info.usbVendorId,
+                                productId: info.usbProductId
+                            });
+                        }
+                    }
+                    
+                    this.updateDeviceStatus();
+                } catch (error) {
+                    console.error('장비 확인 실패:', error);
+                }
+            }
+
+            updateDeviceStatus() {
+                const hasDevice = this.availableDevices.length > 0;
+                
+                if (hasDevice && !this.isConnected) {
+                    this.elements.connectionStatus.textContent = `${this.availableDevices.length}개 장비 감지됨`;
+                    this.elements.connectBtn.textContent = '자동 연결';
+                } else if (!hasDevice && !this.isConnected) {
+                    this.elements.connectionStatus.textContent = '장비 없음';
+                    this.elements.connectBtn.textContent = '장비 연결';
+                }
+            }
+
+            initializeElements() {
+                this.elements = {
+                    deviceType: document.getElementById('deviceType'),
+                    statusDot: document.getElementById('statusDot'),
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    deviceScreen: document.getElementById('deviceScreen'),
+                    screenOverlay: document.getElementById('screenOverlay'),
+                    fpsCounter: document.getElementById('fpsCounter'),
+                    deviceInfo: document.getElementById('deviceInfo'),
+                    resolution: document.getElementById('resolution'),
+                    fpsValue: document.getElementById('fpsValue'),
+                    compression: document.getElementById('compression'),
+                    battery: document.getElementById('battery'),
+                    connectBtn: document.getElementById('connectBtn'),
+                    disconnectBtn: document.getElementById('disconnectBtn'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    resumeBtn: document.getElementById('resumeBtn'),
+                    zoomIn: document.getElementById('zoomIn'),
+                    zoomOut: document.getElementById('zoomOut'),
+                    screenshot: document.getElementById('screenshot'),
+                    invertBtn: document.getElementById('invertBtn'),
+                    fitScreenBtn: document.getElementById('fitScreenBtn'),
+                    resetZoomBtn: document.getElementById('resetZoomBtn'),
+                    singleCaptureBtn: document.getElementById('singleCaptureBtn'),
+                    continuousCaptureBtn: document.getElementById('continuousCaptureBtn'),
+                    saveScreenshotBtn: document.getElementById('saveScreenshotBtn'),
+                    diagnosisBtn: document.getElementById('diagnosisBtn'),
+                    listPortsBtn: document.getElementById('listPortsBtn'),
+                    testConnectionBtn: document.getElementById('testConnectionBtn'),
+                    terminal: document.getElementById('terminal')
+                };
+            }
+
+            setupEventListeners() {
+                this.elements.deviceType.addEventListener('change', (e) => {
+                    this.deviceType = e.target.value;
+                    this.updateDeviceResolution();
+                });
+
+                this.elements.connectBtn.addEventListener('click', () => this.connect());
+                this.elements.disconnectBtn.addEventListener('click', () => this.disconnect());
+                this.elements.pauseBtn.addEventListener('click', () => this.pauseCapture());
+                this.elements.resumeBtn.addEventListener('click', () => this.resumeCapture());
+
+                this.elements.zoomIn.addEventListener('click', () => this.zoomIn());
+                this.elements.zoomOut.addEventListener('click', () => this.zoomOut());
+                this.elements.screenshot.addEventListener('click', () => this.takeScreenshot());
+
+                this.elements.invertBtn.addEventListener('click', () => this.toggleInvert());
+                this.elements.fitScreenBtn.addEventListener('click', () => this.fitToScreen());
+                this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
+
+                this.elements.singleCaptureBtn.addEventListener('click', () => this.singleCapture());
+                this.elements.continuousCaptureBtn.addEventListener('click', () => this.toggleContinuousCapture());
+                this.elements.saveScreenshotBtn.addEventListener('click', () => this.saveScreenshot());
+
+                // 진단 기능
+                this.elements.diagnosisBtn.addEventListener('click', () => this.runDiagnostics());
+                this.elements.listPortsBtn.addEventListener('click', () => this.listAvailablePorts());
+                this.elements.testConnectionBtn.addEventListener('click', () => this.testConnection());
+
+                // 화면 클릭으로 장비 터치 시뮬레이션
+                this.canvas.addEventListener('click', (e) => this.handleScreenClick(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+            }
+
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case '+':
+                        case '=':
+                            e.preventDefault();
+                            this.zoomIn();
+                            break;
+                        case '-':
+                            e.preventDefault();
+                            this.zoomOut();
+                            break;
+                        case 's':
+                        case 'S':
+                            e.preventDefault();
+                            this.takeScreenshot();
+                            break;
+                        case 'Escape':
+                            e.preventDefault();
+                            this.disconnect();
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            if (this.isPaused) {
+                                this.resumeCapture();
+                            } else {
+                                this.pauseCapture();
+                            }
+                            break;
+                    }
+                });
+            }
+
+            updateDeviceResolution() {
+                const deviceConfig = this.getDeviceConfig();
+                
+                this.canvas.width = deviceConfig.width;
+                this.canvas.height = deviceConfig.height;
+                this.elements.resolution.textContent = `${deviceConfig.width}×${deviceConfig.height}`;
+                
+                // 헤더에 선택된 장비명 표시
+                const headerTitle = document.querySelector('.header h1');
+                headerTitle.textContent = `📡 ${deviceConfig.name} 리모트 미러링`;
+                
+                this.updateScreenSize();
+                console.log(`장비 변경: ${deviceConfig.name} (${deviceConfig.width}×${deviceConfig.height})`);
+            }
+
+            updateScreenSize() {
+                const scale = this.zoom;
+                this.elements.deviceScreen.style.transform = `scale(${scale})`;
+            }
+
+            getDeviceConfig() {
+                const configs = {
+                    'nanovna': {
+                        name: 'NanoVNA-H',
+                        vendorId: 0x0483,
+                        productId: 0x5740,
+                        baudRate: 115200,
+                        width: 320,
+                        height: 240
+                    },
+                    'nanovna-h4': {
+                        name: 'NanoVNA-H4',
+                        vendorId: 0x0483,
+                        productId: 0x5740,
+                        baudRate: 115200,
+                        width: 480,
+                        height: 320
+                    },
+                    'tinysa': {
+                        name: 'tinySA',
+                        vendorId: 0x0483,
+                        productId: 0x5740,
+                        baudRate: 115200,
+                        width: 320,
+                        height: 240
+                    },
+                    'tinysa-ultra': {
+                        name: 'tinySA Ultra',
+                        vendorId: 0x0483,
+                        productId: 0x5740,
+                        baudRate: 115200,
+                        width: 480,
+                        height: 320
+                    },
+                    'tinypfa': {
+                        name: 'tinyPFA',
+                        vendorId: 0x0483,
+                        productId: 0x5740,
+                        baudRate: 115200,
+                        width: 320,
+                        height: 240
+                    }
+                };
+                return configs[this.deviceType];
+            }
+
+            async autoDetectDevice() {
+                if (this.simulationMode) return null;
+                
+                try {
+                    // 이미 권한이 부여된 포트들 확인
+                    const ports = await navigator.serial.getPorts();
+                    
+                    for (const port of ports) {
+                        const info = port.getInfo();
+                        const deviceConfig = this.getDeviceConfig();
+                        
+                        // VID/PID 매칭 확인
+                        if (info.usbVendorId === deviceConfig.vendorId && 
+                            info.usbProductId === deviceConfig.productId) {
+                            console.log(`장비 자동 감지됨: VID=${info.usbVendorId.toString(16)}, PID=${info.usbProductId.toString(16)}`);
+                            return port;
+                        }
+                    }
+                    
+                    console.log('기존에 연결된 장비가 없습니다. 수동 선택이 필요합니다.');
+                    return null;
+                } catch (error) {
+                    console.error('자동 감지 실패:', error);
+                    return null;
+                }
+            }
+
+            async connect() {
+                this.elements.connectBtn.disabled = true;
+                this.elements.connectionStatus.textContent = '장비 감지 중...';
+                
+                const deviceConfig = this.getDeviceConfig();
+
+                if (!this.simulationMode) {
+                    try {
+                        // 1단계: 자동 장비 감지 시도
+                        let detectedPort = await this.autoDetectDevice();
+                        
+                        if (detectedPort) {
+                            // 자동 감지된 장비로 연결
+                            this.serialPort = detectedPort;
+                            this.elements.connectionStatus.textContent = '자동 감지된 장비에 연결 중...';
+                        } else {
+                            // 2단계: 수동 장비 선택
+                            this.elements.connectionStatus.textContent = '장비를 선택하세요...';
+                            this.serialPort = await navigator.serial.requestPort({
+                                filters: [{ 
+                                    usbVendorId: deviceConfig.vendorId, 
+                                    usbProductId: deviceConfig.productId 
+                                }]
+                            });
+                            this.elements.connectionStatus.textContent = '선택된 장비에 연결 중...';
+                        }
+
+                        // 포트 열기
+                        await this.serialPort.open({
+                            baudRate: deviceConfig.baudRate,
+                            dataBits: 8,
+                            stopBits: 1,
+                            parity: 'none'
+                        });
+
+                        // 장비 타입 확인
+                        await this.verifyDeviceType();
+                        
+                        this.isConnected = true;
+                        this.startRealCapture();
+                    } catch (error) {
+                        console.error('연결 실패:', error);
+                        this.elements.connectionStatus.textContent = `연결 실패: ${error.message}`;
+                        this.elements.connectBtn.disabled = false;
+                        return;
+                    }
+                } else {
+                    // 시뮬레이션 모드
+                    setTimeout(() => {
+                        this.isConnected = true;
+                        this.updateConnectionStatus();
+                        this.startSimulation();
+                    }, 1000);
+                }
+
+                this.updateConnectionStatus();
+            }
+
+            async verifyDeviceType() {
+                if (!this.serialPort) return;
+                
+                try {
+                    const encoder = new TextEncoder();
+                    const decoder = new TextDecoder();
+                    
+                    // 장비 정보 요청
+                    const writer = this.serialPort.writable.getWriter();
+                    await writer.write(encoder.encode('info\r\n'));
+                    writer.releaseLock();
+
+                    // 응답 읽기
+                    const reader = this.serialPort.readable.getReader();
+                    const { value } = await reader.read();
+                    const response = decoder.decode(value);
+                    reader.releaseLock();
+
+                    console.log('장비 정보:', response);
+                    
+                    // 응답에서 장비 타입 확인
+                    if (response.includes('tinySA') && this.deviceType.includes('nanovna')) {
+                        throw new Error('선택된 장비 타입과 실제 장비가 다릅니다. tinySA가 연결됨');
+                    } else if (response.includes('NanoVNA') && this.deviceType.includes('tinysa')) {
+                        throw new Error('선택된 장비 타입과 실제 장비가 다릅니다. NanoVNA가 연결됨');
+                    }
+                    
+                } catch (error) {
+                    console.warn('장비 타입 확인 실패:', error);
+                    // 확인 실패시에도 연결은 진행 (일부 장비에서 info 명령 미지원)
+                }
+            }
+
+            async disconnect() {
+                if (this.serialPort && !this.simulationMode) {
+                    await this.serialPort.close();
+                }
+
+                this.isConnected = false;
+                this.isCapturing = false;
+                this.serialPort = null;
+                this.updateConnectionStatus();
+            }
+
+            updateConnectionStatus() {
+                if (this.isConnected) {
+                    this.elements.statusDot.classList.add('connected');
+                    this.elements.connectionStatus.textContent = '연결됨';
+                    this.elements.screenOverlay.style.display = 'none';
+                    this.elements.deviceInfo.style.display = 'block';
+                    this.elements.connectBtn.disabled = true;
+                    this.elements.disconnectBtn.disabled = false;
+                    this.elements.pauseBtn.disabled = false;
+                    this.elements.resumeBtn.disabled = false;
+                } else {
+                    this.elements.statusDot.classList.remove('connected');
+                    this.elements.connectionStatus.textContent = '연결 안됨';
+                    this.elements.screenOverlay.style.display = 'flex';
+                    this.elements.deviceInfo.style.display = 'none';
+                    this.elements.connectBtn.disabled = false;
+                    this.elements.disconnectBtn.disabled = true;
+                    this.elements.pauseBtn.disabled = true;
+                    this.elements.resumeBtn.disabled = true;
+                }
+            }
+
+            async startRealCapture() {
+                if (!this.serialPort || !this.isConnected) return;
+
+                this.isCapturing = true;
+                this.logToTerminal('🎬 실시간 화면 캡처 시작...');
+                
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
+
+                while (this.isCapturing && this.isConnected) {
+                    try {
+                        if (!this.isPaused) {
+                            this.logToTerminal('📸 화면 캡처 중...');
+                            
+                            // 화면 일시정지 명령
+                            const writer1 = this.serialPort.writable.getWriter();
+                            await writer1.write(encoder.encode('pause\r\n'));
+                            writer1.releaseLock();
+                            await this.delay(100);
+                            
+                            // 화면 캡처 명령 (RLE 압축 시도)
+                            const writer2 = this.serialPort.writable.getWriter();
+                            await writer2.write(encoder.encode('capture rle\r\n'));
+                            writer2.releaseLock();
+                            
+                            // 응답 읽기
+                            const reader = this.serialPort.readable.getReader();
+                            const timeout = setTimeout(() => reader.cancel(), 3000);
+                            
+                            try {
+                                const { value } = await reader.read();
+                                clearTimeout(timeout);
+                                
+                                if (value && value.length > 0) {
+                                    this.logToTerminal(`📥 화면 데이터 수신: ${value.length} bytes`);
+                                    await this.parseScreenData(value);
+                                } else {
+                                    this.logToTerminal('⚠️  화면 데이터 없음 - 일반 캡처 시도');
+                                    
+                                    // RLE 실패시 일반 캡처 시도
+                                    const writer3 = this.serialPort.writable.getWriter();
+                                    await writer3.write(encoder.encode('capture\r\n'));
+                                    writer3.releaseLock();
+                                    
+                                    const { value: normalData } = await reader.read();
+                                    if (normalData && normalData.length > 0) {
+                                        this.logToTerminal(`📥 일반 화면 데이터 수신: ${normalData.length} bytes`);
+                                        await this.parseScreenData(normalData);
+                                    }
+                                }
+                            } catch (readError) {
+                                this.logToTerminal(`❌ 데이터 읽기 실패: ${readError.message}`);
+                            }
+                            
+                            reader.releaseLock();
+                            
+                            // 화면 업데이트 재개
+                            const writer4 = this.serialPort.writable.getWriter();
+                            await writer4.write(encoder.encode('resume\r\n'));
+                            writer4.releaseLock();
+                        }
+
+                        this.updateFPS();
+                        await this.delay(200); // 5 FPS로 제한
+                        
+                    } catch (error) {
+                        this.logToTerminal(`❌ 캡처 오류: ${error.message}`);
+                        await this.delay(1000); // 오류시 1초 대기
+                    }
+                }
+                
+                this.logToTerminal('🛑 화면 캡처 중지됨');
+            }
+
+            async parseScreenData(data) {
+                try {
+                    // 데이터가 텍스트인지 바이너리인지 확인
+                    const decoder = new TextDecoder();
+                    const textData = decoder.decode(data);
+                    
+                    this.logToTerminal(`🔍 데이터 분석: ${textData.slice(0, 50)}...`);
+                    
+                    // RLE 헤더 확인
+                    if (data[0] === 0x52 && data[1] === 0x4C && data[2] === 0x45) { // "RLE"
+                        this.logToTerminal('📦 RLE 압축 데이터 감지');
+                        await this.parseRLEData(data.slice(3));
+                    } else if (data.length >= 320 * 240 * 2) { // RGB565 추정
+                        this.logToTerminal('🖼️  RGB565 데이터 감지');
+                        await this.parseRGB565Data(data);
+                    } else {
+                        this.logToTerminal('⚠️  알 수 없는 데이터 형식 - 시뮬레이션으로 전환');
+                        this.generateSimulatedScreen();
+                    }
+                } catch (error) {
+                    this.logToTerminal(`❌ 화면 데이터 파싱 실패: ${error.message}`);
+                    this.generateSimulatedScreen(); // 파싱 실패시 시뮬레이션 표시
+                }
+            }
+
+            async parseRLEData(rleData) {
+                try {
+                    this.logToTerminal('🔓 RLE 데이터 압축 해제 중...');
+                    
+                    const deviceConfig = this.getDeviceConfig();
+                    const width = deviceConfig.width;
+                    const height = deviceConfig.height;
+                    
+                    // RLE 압축 해제 (간단한 구현)
+                    const pixels = new Uint8Array(width * height * 4); // RGBA
+                    let pixelIndex = 0;
+                    let dataIndex = 0;
+                    
+                    while (dataIndex < rleData.length && pixelIndex < pixels.length) {
+                        const count = rleData[dataIndex++];
+                        const r = rleData[dataIndex++] || 0;
+                        const g = rleData[dataIndex++] || 0;
+                        const b = rleData[dataIndex++] || 0;
+                        
+                        for (let i = 0; i < count && pixelIndex < pixels.length; i++) {
+                            pixels[pixelIndex++] = r;
+                            pixels[pixelIndex++] = g;
+                            pixels[pixelIndex++] = b;
+                            pixels[pixelIndex++] = 255; // Alpha
+                        }
+                    }
+                    
+                    // Canvas에 그리기
+                    const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+                    this.ctx.putImageData(imageData, 0, 0);
+                    
+                    this.logToTerminal('✅ RLE 화면 데이터 표시 완료');
+                } catch (error) {
+                    this.logToTerminal(`❌ RLE 파싱 실패: ${error.message}`);
+                    this.generateSimulatedScreen();
+                }
+            }
+
+            async parseRGB565Data(rgb565Data) {
+                try {
+                    this.logToTerminal('🎨 RGB565 데이터 변환 중...');
+                    
+                    const deviceConfig = this.getDeviceConfig();
+                    const width = deviceConfig.width;
+                    const height = deviceConfig.height;
+                    
+                    const pixels = new Uint8Array(width * height * 4); // RGBA
+                    
+                    for (let i = 0; i < width * height * 2; i += 2) {
+                        const rgb565 = (rgb565Data[i] << 8) | rgb565Data[i + 1];
+                        const pixelIndex = (i / 2) * 4;
+                        
+                        // RGB565를 RGB888로 변환
+                        const r = ((rgb565 >> 11) & 0x1F) << 3;
+                        const g = ((rgb565 >> 5) & 0x3F) << 2;
+                        const b = (rgb565 & 0x1F) << 3;
+                        
+                        pixels[pixelIndex] = r;
+                        pixels[pixelIndex + 1] = g;
+                        pixels[pixelIndex + 2] = b;
+                        pixels[pixelIndex + 3] = 255; // Alpha
+                    }
+                    
+                    // Canvas에 그리기
+                    const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+                    this.ctx.putImageData(imageData, 0, 0);
+                    
+                    this.logToTerminal('✅ RGB565 화면 데이터 표시 완료');
+                } catch (error) {
+                    this.logToTerminal(`❌ RGB565 파싱 실패: ${error.message}`);
+                    this.generateSimulatedScreen();
+                }
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            startSimulation() {
+                if (!this.isConnected) return;
+
+                this.isCapturing = true;
+                const simulate = () => {
+                    if (!this.isCapturing || !this.isConnected) return;
+
+                    if (!this.isPaused) {
+                        this.generateSimulatedScreen();
+                        this.updateFPS();
+                    }
+
+                    setTimeout(simulate, 100); // 10 FPS
+                };
+                simulate();
+            }
+
+            generateSimulatedScreen() {
+                // 시뮬레이션 화면 생성 (스펙트럼 분석기 화면 모사)
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 격자 그리기
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 1;
+                
+                // 수직 격자
+                for (let i = 0; i <= 10; i++) {
+                    const x = (this.canvas.width * i) / 10;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                
+                // 수평 격자
+                for (let i = 0; i <= 8; i++) {
+                    const y = (this.canvas.height * i) / 8;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+
+                // 시뮬레이션 스펙트럼 곡선
+                this.ctx.strokeStyle = this.invertColors ? '#000' : '#0f0';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+
+                const time = Date.now() / 1000;
+                for (let x = 0; x < this.canvas.width; x++) {
+                    const freq = x / this.canvas.width;
+                    const y = this.canvas.height * 0.8 - 
+                        Math.sin(freq * Math.PI * 4 + time) * 30 -
+                        Math.sin(freq * Math.PI * 8 + time * 2) * 15 -
+                        Math.random() * 5;
+                    
+                    if (x === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+                this.ctx.stroke();
+
+                // 텍스트 정보 표시
+                this.ctx.fillStyle = this.invertColors ? '#000' : '#fff';
+                this.ctx.font = '12px Arial';
+                this.ctx.fillText(`${this.deviceType.toUpperCase()} - 시뮬레이션`, 10, 20);
+                this.ctx.fillText('1MHz - 900MHz', 10, this.canvas.height - 30);
+                this.ctx.fillText(`Ref: -10dBm`, 10, this.canvas.height - 15);
+
+                // 마커
+                const markerX = this.canvas.width / 2;
+                const markerY = this.canvas.height * 0.5;
+                this.ctx.strokeStyle = this.invertColors ? '#000' : '#ff0';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(markerX, 0);
+                this.ctx.lineTo(markerX, this.canvas.height);
+                this.ctx.stroke();
+
+                // 배터리 정보 업데이트
+                this.elements.battery.textContent = '3.7V';
+                this.elements.compression.textContent = 'Simulated';
+
+                if (this.invertColors) {
+                    this.applyColorInversion();
+                }
+            }
+
+            parseScreenData(data) {
+                // 실제 장비에서 받은 화면 데이터 파싱
+                // RLE 압축 해제 또는 RGB565 데이터 처리
+                // 이 부분은 실제 장비의 응답 형식에 따라 구현
+                console.log('Received screen data:', data.length, 'bytes');
+            }
+
+            applyColorInversion() {
+                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = 255 - data[i];     // Red
+                    data[i + 1] = 255 - data[i + 1]; // Green
+                    data[i + 2] = 255 - data[i + 2]; // Blue
+                }
+                
+                this.ctx.putImageData(imageData, 0, 0);
+            }
+
+            handleScreenClick(event) {
+                if (!this.isConnected) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / (rect.width / this.zoom);
+                const scaleY = this.canvas.height / (rect.height / this.zoom);
+                
+                const x = Math.floor((event.clientX - rect.left) * scaleX);
+                const y = Math.floor((event.clientY - rect.top) * scaleY);
+
+                console.log(`Touch at: ${x}, ${y}`);
+                
+                if (!this.simulationMode && this.serialPort) {
+                    // 실제 장비에 터치 좌표 전송
+                    this.sendTouchCommand(x, y);
+                } else {
+                    // 시뮬레이션 터치 효과
+                    this.showTouchFeedback(x, y);
+                }
+            }
+
+            async sendTouchCommand(x, y) {
+                try {
+                    const encoder = new TextEncoder();
+                    const writer = this.serialPort.writable.getWriter();
+                    await writer.write(encoder.encode(`touch ${x} ${y}\r\n`));
+                    writer.releaseLock();
+                } catch (error) {
+                    console.error('터치 명령 전송 실패:', error);
+                }
+            }
+
+            showTouchFeedback(x, y) {
+                this.ctx.strokeStyle = '#f00';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 10, 0, 2 * Math.PI);
+                this.ctx.stroke();
+                
+                setTimeout(() => {
+                    // 터치 효과 제거를 위해 화면 다시 그리기
+                    if (this.simulationMode) {
+                        this.generateSimulatedScreen();
+                    }
+                }, 200);
+            }
+
+            handleMouseMove(event) {
+                // 마우스 커서 위치 표시 (옵션)
+            }
+
+            pauseCapture() {
+                this.isPaused = true;
+                this.elements.pauseBtn.disabled = true;
+                this.elements.resumeBtn.disabled = false;
+            }
+
+            resumeCapture() {
+                this.isPaused = false;
+                this.elements.pauseBtn.disabled = false;
+                this.elements.resumeBtn.disabled = true;
+            }
+
+            zoomIn() {
+                if (this.zoom < 4) {
+                    this.zoom += 0.5;
+                    this.updateScreenSize();
+                }
+            }
+
+            zoomOut() {
+                if (this.zoom > 1) {
+                    this.zoom -= 0.5;
+                    this.updateScreenSize();
+                }
+            }
+
+            resetZoom() {
+                this.zoom = 2;
+                this.updateScreenSize();
+            }
+
+            fitToScreen() {
+                // 화면 크기에 맞춰 자동 줌 조절
+                const container = this.elements.deviceScreen.parentElement;
+                const containerWidth = container.clientWidth - 100;
+                const containerHeight = container.clientHeight - 100;
+                
+                const scaleX = containerWidth / this.canvas.width;
+                const scaleY = containerHeight / this.canvas.height;
+                
+                this.zoom = Math.min(scaleX, scaleY, 4);
+                this.updateScreenSize();
+            }
+
+            toggleInvert() {
+                this.invertColors = !this.invertColors;
+                this.elements.invertBtn.textContent = this.invertColors ? '색상 복원' : '색상 반전';
+            }
+
+            takeScreenshot() {
+                this.saveScreenshot();
+            }
+
+            singleCapture() {
+                if (this.isConnected && !this.simulationMode) {
+                    // 단일 캡처 명령
+                    this.sendDeviceCommand('capture');
+                }
+            }
+
+            toggleContinuousCapture() {
+                if (this.isCapturing) {
+                    this.isCapturing = false;
+                    this.elements.continuousCaptureBtn.textContent = '연속 캡처 시작';
+                } else {
+                    this.isCapturing = true;
+                    this.elements.continuousCaptureBtn.textContent = '연속 캡처 중지';
+                    if (this.simulationMode) {
+                        this.startSimulation();
+                    } else {
+                        this.startRealCapture();
+                    }
+                }
+            }
+
+            logToTerminal(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`[${timestamp}] ${message}`);
+                
+                // DOM 요소가 있는지 안전하게 확인
+                if (!this.elements || !this.elements.terminal) {
+                    const terminalElement = document.getElementById('terminal');
+                    if (terminalElement) {
+                        if (!this.elements) this.elements = {};
+                        this.elements.terminal = terminalElement;
+                    } else {
+                        // 터미널 요소를 찾을 수 없으면 콘솔에만 출력
+                        return;
+                    }
+                }
+                
+                try {
+                    const line = document.createElement('div');
+                    line.className = 'terminal-line';
+                    line.textContent = `[${timestamp}] ${message}`;
+                    this.elements.terminal.appendChild(line);
+                    this.elements.terminal.scrollTop = this.elements.terminal.scrollHeight;
+                    
+                    // 터미널 라인 수 제한 (성능을 위해)
+                    const lines = this.elements.terminal.children;
+                    if (lines.length > 100) {
+                        lines[0].remove();
+                    }
+                } catch (error) {
+                    console.error('터미널 로그 오류:', error);
+                }
+            }
+
+            async runDiagnostics() {
+                this.logToTerminal('🔧 시스템 진단 시작...');
+                
+                // 브라우저 정보
+                this.logToTerminal(`🌐 브라우저: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
+                this.logToTerminal(`🔒 프로토콜: ${window.location.protocol}`);
+                
+                // WebSerial 지원 확인
+                if ('serial' in navigator) {
+                    this.logToTerminal('✅ WebSerial API 지원됨');
+                    
+                    // Permissions API 확인
+                    if ('permissions' in navigator) {
+                        try {
+                            const permission = await navigator.permissions.query({ name: 'serial' });
+                            this.logToTerminal(`🔐 Serial 권한 상태: ${permission.state}`);
+                        } catch (error) {
+                            this.logToTerminal(`⚠️  권한 확인 실패: ${error.message}`);
+                        }
+                    }
+                } else {
+                    this.logToTerminal('❌ WebSerial API 미지원');
+                    this.logToTerminal('💡 해결방법: Chrome 89+ 또는 Edge 89+ 사용');
+                }
+                
+                // HTTPS 확인
+                if (window.location.protocol === 'https:') {
+                    this.logToTerminal('✅ HTTPS 환경 (WebSerial 사용 가능)');
+                } else {
+                    this.logToTerminal('❌ HTTP 환경 (WebSerial 사용 불가)');
+                    this.logToTerminal('💡 해결방법: https:// 로 접속하거나 localhost 사용');
+                }
+                
+                this.logToTerminal('✅ 시스템 진단 완료');
+            }
+
+            async listAvailablePorts() {
+                if (this.simulationMode) {
+                    this.logToTerminal('❌ WebSerial 미지원으로 포트 확인 불가');
+                    return;
+                }
+                
+                try {
+                    this.logToTerminal('🔍 사용가능한 포트 검색 중...');
+                    const ports = await navigator.serial.getPorts();
+                    
+                    if (ports.length === 0) {
+                        this.logToTerminal('📋 권한 부여된 포트 없음');
+                        this.logToTerminal('💡 "장비 연결" 버튼을 클릭하여 포트 권한 부여');
+                    } else {
+                        this.logToTerminal(`📋 발견된 포트: ${ports.length}개`);
+                        
+                        for (let i = 0; i < ports.length; i++) {
+                            const port = ports[i];
+                            const info = port.getInfo();
+                            this.logToTerminal(`  포트 ${i + 1}: VID=0x${info.usbVendorId?.toString(16) || 'unknown'}, PID=0x${info.usbProductId?.toString(16) || 'unknown'}`);
+                            
+                            if (info.usbVendorId === 0x0483 && info.usbProductId === 0x5740) {
+                                this.logToTerminal('    ✅ tinySA/NanoVNA 호환!');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    this.logToTerminal(`❌ 포트 검색 실패: ${error.message}`);
+                }
+            }
+
+            async testConnection() {
+                if (this.simulationMode) {
+                    this.logToTerminal('❌ WebSerial 미지원으로 연결 테스트 불가');
+                    return;
+                }
+                
+                this.logToTerminal('🧪 연결 테스트 시작...');
+                
+                try {
+                    // 포트 선택
+                    this.logToTerminal('📋 테스트용 포트 선택 다이얼로그 표시...');
+                    const testPort = await navigator.serial.requestPort({
+                        filters: [{ usbVendorId: 0x0483, usbProductId: 0x5740 }]
+                    });
+                    
+                    this.logToTerminal('✅ 포트 선택 완료');
+                    
+                    // 포트 열기
+                    this.logToTerminal('🔗 포트 열기 시도...');
+                    await testPort.open({
+                        baudRate: 115200,
+                        dataBits: 8,
+                        stopBits: 1,
+                        parity: 'none'
+                    });
+                    
+                    this.logToTerminal('✅ 포트 열기 성공');
+                    
+                    // 간단한 명령 테스트
+                    this.logToTerminal('📤 테스트 명령 전송 (info)...');
+                    const encoder = new TextEncoder();
+                    const decoder = new TextDecoder();
+                    
+                    const writer = testPort.writable.getWriter();
+                    await writer.write(encoder.encode('info\r\n'));
+                    writer.releaseLock();
+                    
+                    // 응답 읽기 (타임아웃 포함)
+                    const reader = testPort.readable.getReader();
+                    const timeout = setTimeout(() => reader.cancel(), 2000);
+                    
+                    try {
+                        const { value } = await reader.read();
+                        clearTimeout(timeout);
+                        
+                        if (value) {
+                            const response = decoder.decode(value);
+                            this.logToTerminal(`📥 장비 응답: ${response.trim()}`);
+                            this.logToTerminal('✅ 통신 테스트 성공!');
+                        } else {
+                            this.logToTerminal('⚠️  응답 없음 (일부 장비에서 정상)');
+                        }
+                    } catch (readError) {
+                        this.logToTerminal(`⚠️  응답 읽기 실패: ${readError.message}`);
+                    }
+                    
+                    reader.releaseLock();
+                    
+                    // 포트 닫기
+                    await testPort.close();
+                    this.logToTerminal('🔒 테스트 포트 닫기 완료');
+                    this.logToTerminal('🎉 연결 테스트 완료!');
+                    
+                } catch (error) {
+                    this.logToTerminal(`❌ 연결 테스트 실패: ${error.name} - ${error.message}`);
+                    
+                    if (error.name === 'NotFoundError') {
+                        this.logToTerminal('💡 해결방법: USB 케이블과 장비 연결 확인');
+                    } else if (error.name === 'SecurityError') {
+                        this.logToTerminal('💡 해결방법: HTTPS 환경에서 접속');
+                    } else if (error.name === 'InvalidStateError') {
+                        this.logToTerminal('💡 해결방법: 다른 프로그램에서 장비 사용 중일 수 있음');
+                    }
+                }
+            }
+
+            saveScreenshot() {
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `${this.deviceType}_${timestamp}.png`;
+                
+                this.canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.logToTerminal(`📸 스크린샷 저장: ${filename}`);
+                });
+            }
+
+            async sendDeviceCommand(command) {
+                if (!this.simulationMode && this.serialPort) {
+                    try {
+                        const encoder = new TextEncoder();
+                        const writer = this.serialPort.writable.getWriter();
+                        await writer.write(encoder.encode(command + '\r\n'));
+                        writer.releaseLock();
+                    } catch (error) {
+                        console.error('명령 전송 실패:', error);
+                    }
+                }
+            }
+
+            updateFPS() {
+                this.frameCount++;
+                const now = Date.now();
+                
+                if (now - this.lastFpsUpdate >= 1000) {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastFpsUpdate = now;
+                    
+                    this.elements.fpsCounter.textContent = `FPS: ${this.fps}`;
+                    this.elements.fpsValue.textContent = this.fps.toString();
+                }
+            }
+        }
+
+        // 애플리케이션 시작
+        document.addEventListener('DOMContentLoaded', () => {
+            window.controller = new NanoVNARemoteController();
+        });
+    </script>
+</body>
+</html>
